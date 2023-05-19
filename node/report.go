@@ -79,8 +79,6 @@ func (h *reportHandler) wrap(next gohttp.Handler) gohttp.Handler {
 			); err != nil {
 				metrics.CounterInc("request_log_err_total")
 				log.Error("Error making log request", "error", err)
-			} else {
-				log.Info("Request logged successfully")
 			}
 		}(r.Clone(r.Context()))
 
