@@ -160,7 +160,7 @@ func hostnameOption(cctx *oldcmds.Context) corehttp.ServeOption {
 			mux,
 			gwAPI,
 			publicGws,
-			rcfg.Gateway.NoDNSLink),
+			true), // rcfg.Gateway.NoDNSLink),
 		)
 
 		return mux, nil
