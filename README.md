@@ -7,5 +7,5 @@ However, it needs to join the [Gateway3](www.gw3.io) protocol in order to make i
 
 Command to start the falcon service:
 ```
-go run ./cmd/falcon/. daemon --init --falcon-config=./cmd/falcon/config/config_dev.yaml
+go run ./cmd/node/. daemon --init --falcon-config=./cmd/node/config/config_dev.yaml
 ```
