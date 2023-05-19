@@ -1,0 +1,124 @@
+name: go-test
+
+on:
+  push:
+    branches: [ 'main' ]
+  pull_request:
+    branches: [ 'main' ]
+
+defaults:
+  run:
+    # shell default shell to bash for all OS
+    shell: bash
+
+jobs:
+  go-run-test:
+    name: go-run-test
+    strategy:
+      matrix:
+        os: [ ubuntu-latest ]
+        #os: [ ubuntu-latest, macos-latest, windows-latest ]
+    runs-on: ${{ matrix.os }}
+    steps:
+      #- name: dump-github-object
+      #  run: |
+      #    cat << OBJECT
+      #    ${{ toJson(github) }}
+      #    OBJECT
+
+      - name: pr-open-notification
+        if: ${{ github.event_name == 'pull_request' && github.event.action == 'opened' }}
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TG_DEV_GROUP_ID }}
+          token: ${{ secrets.TG_BOT_TOKEN }}
+          format: markdown
+          disable_web_page_preview: true
+          message: |
+            *PR Opened*
+            Repo: [falcon](https://github.com/photon-storage/falcon)
+            Commit: [${{ github.event.pull_request.head.sha }}](${{ github.event.pull_request.html_url }})
+            Author: [${{ github.event.pull_request.user.login }}](${{ github.event.pull_request.user.html_url }})
+            Message:```text
+            ${{ github.event.pull_request.title }}
+            ```
+            Date: ${{ github.event.pull_request.updated_at }}
+            Changes: ${{ github.event.pull_request.changed_files }} files (+${{ github.event.pull_request.additions }}/-${{ github.event.pull_request.deletions }})
+
+      - name: pr-push-notification
+        if: ${{ github.event_name == 'push' }}
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TG_DEV_GROUP_ID }}
+          token: ${{ secrets.TG_BOT_TOKEN }}
+          format: markdown
+          disable_web_page_preview: true
+          message: |
+            *PR Merged*
+            Repo: [falcon](https://github.com/photon-storage/falcon)
+            Commit: [${{ github.event.after }}](${{ github.event.head_commit.url }})
+            Author: ${{ github.event.head_commit.author.username }}
+            Message: ```text
+            ${{ github.event.head_commit.message }}
+            ```
+            Date: ${{ github.event.head_commit.timestamp }}
+            Pusher: ${{ github.event.pusher.name }}
+
+      - name: install-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.19
+
+      - name: checkout-code
+        uses: actions/checkout@v2
+
+      - id: go-cache-paths
+        run: |
+          echo "::set-output name=go-build::$(go env GOCACHE)"
+          echo "::set-output name=go-mod::$(go env GOMODCACHE)"
+
+      - name: build-cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-build }}
+          key: ${{ matrix.os }}-go-test-build-${{ hashFiles('**/go.sum') }}
+
+      - name: mod-cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ steps.go-cache-paths.outputs.go-mod }}
+          key: ${{ matrix.os }}-go-test-mod-${{ hashFiles('**/go.sum') }}
+
+      - name: env-cache
+        uses: actions/cache@v2
+        with:
+          path: .env
+          key: ${{ matrix.os }}-go-test-env-${{ hashFiles('**/scripts/VERSIONS') }}
+
+      - name: sys-env
+        run: |
+          lscpu 2>/dev/null && echo --- || true
+          env | sort
+
+      - name: private-module-access
+        run: |
+         git config --global url."https://x-oauth-basic:${{ secrets.ACTION_REPO_ACCESS }}@github.com/photon-storage/go-photon".insteadOf "https://github.com/photon-storage/go-photon"
+         git config --global url."https://x-oauth-basic:${{ secrets.ACTION_REPO_ACCESS }}@github.com/photon-storage/go-rc-pinner".insteadOf "https://github.com/photon-storage/go-rc-pinner"
+
+      - name: run-test-on-pr
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          go version
+          if ! (grep -q -e '^flags.*\badx\b' /proc/cpuinfo) 2>/dev/null; then
+            export CGO_CFLAGS="-O -D__BLST_PORTABLE__"
+          fi
+          go test -v -timeout=10m ./...
+
+      - name: run-test-on-push
+        if: ${{ github.event_name == 'push' }}
+        run: |
+          go version
+          if ! (grep -q -e '^flags.*\badx\b' /proc/cpuinfo) 2>/dev/null; then
+            export CGO_CFLAGS="-O -D__BLST_PORTABLE__"
+          fi
+          go test -v -timeout=10m ./...

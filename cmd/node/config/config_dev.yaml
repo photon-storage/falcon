@@ -1,0 +1,55 @@
+log:
+  level: debug
+  ipfs_subsystems: core/server
+  file_path: ""
+  color: true
+
+auth:
+  no_auth: false
+  redirect_on_failure: true
+  starbase_public_key_base64: CAESIHnUcGM7CitSdYMLIFMEoy1yQy8dAE7rtKJDJ5kQybXd
+  whitelist:
+    - /ipfs
+    - /ipns
+    #- /api/v0/name/publish
+    - /api/v0/pin/ls
+    - /api/v0/pin/add
+    # - /api/v0/pin/update
+    - /api/v0/pin/rm
+    #- /api/v0/pin/verify
+    - /api/v0/pin/count
+    - /api/v0/dag/get
+    #- /api/v0/dag/put
+    #- /api/v0/dag/export
+    #- /api/v0/dag/import
+    - /api/v0/dag/stat
+    #- /api/v0/files/ls
+    #- /api/v0/files/mkdir
+    #- /api/v0/files/read
+    #- /api/v0/files/write
+    #- /api/v0/files/rm
+    #- /api/v0/files/mv
+    #- /api/v0/files/cp
+    #- /api/v0/files/flush
+
+ipfs_config:
+  max_mem_mbytes: 512
+  max_file_descriptors: 64
+  conn_mgr_low_water: 48
+  conn_mgr_high_water: 64
+  conn_mgr_grace_period: 10m
+  disable_relay_client: true
+
+listen_addresses:
+  - address: ":80"
+    use_tls: false
+
+secret_key_base64: CAESQOiMDZG28QD6UTZjXsT4sRgWf4iKYIA5y+wNibdp4OQMcKn/prp8dtK+lLd7rgnnjmYHXBSconxM8OuCrBIeapg=
+
+extern_services:
+  starbase: http://127.0.0.1:16000
+  spaceport: http://127.0.0.1:16002
+
+discovery:
+  public_host: 127.0.0.1
+  public_port: 80
