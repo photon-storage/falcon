@@ -1,0 +1,187 @@
+package node
+
+import (
+	"context"
+	"hash/fnv"
+	gohttp "net/http"
+	"net/url"
+	"strings"
+
+	lru "github.com/hashicorp/golang-lru/v2"
+	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
+
+	"github.com/photon-storage/go-common/log"
+	"github.com/photon-storage/go-gw3/common/auth"
+	"github.com/photon-storage/go-gw3/common/http"
+)
+
+const (
+	ctxArgsKey = "ctx_args"
+)
+
+func SetArgsFromCtx(ctx context.Context, args *http.Args) context.Context {
+	return context.WithValue(ctx, ctxArgsKey, args)
+}
+
+func GetArgsFromCtx(ctx context.Context) *http.Args {
+	v := ctx.Value(ctxArgsKey)
+	if v == nil {
+		return nil
+	}
+	args, ok := v.(*http.Args)
+	if !ok {
+		return nil
+	}
+	return args
+}
+
+type authHandler struct {
+	pk                libp2pcrypto.PubKey
+	redirectOnFailure bool
+	starbaseURL       *url.URL
+	wl                map[string]bool
+	recentSeen        *lru.Cache[uint64, bool]
+}
+
+func newAuthHandler() (*authHandler, error) {
+	cfg := Cfg()
+	var pk libp2pcrypto.PubKey
+	var starbaseURL *url.URL
+	if cfg.Auth.NoAuth {
+		log.Warn("Falcon API authentication is disabled")
+	} else {
+		var err error
+		if pk, err = auth.DecodePk(
+			cfg.Auth.StarbasePublicKeyBase64,
+		); err != nil {
+			return nil, err
+		}
+
+		dst := Cfg().ExternalServices.Starbase
+		if !strings.HasPrefix(dst, "http://") &&
+			!strings.HasPrefix(dst, "https://") {
+			dst = "http://" + dst
+		}
+		if starbaseURL, err = url.Parse(dst); err != nil {
+			return nil, err
+		}
+	}
+
+	wl := map[string]bool{}
+	for _, path := range cfg.Auth.Whitelist {
+		wl[path] = true
+	}
+
+	// Assuming QPS = 10k
+	cache, err := lru.New[uint64, bool](1024 * 600)
+	if err != nil {
+		return nil, err
+	}
+
+	return &authHandler{
+		pk:                pk,
+		redirectOnFailure: cfg.Auth.RedirectOnFailure,
+		starbaseURL:       starbaseURL,
+		wl:                wl,
+		recentSeen:        cache,
+	}, nil
+}
+
+func (h *authHandler) hasRecentSeen(r *gohttp.Request) bool {
+	s := fnv.New64a()
+	s.Write([]byte(r.URL.String()))
+	found, _ := h.recentSeen.ContainsOrAdd(s.Sum64(), true)
+	return found
+}
+
+func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
+	return gohttp.HandlerFunc(func(w gohttp.ResponseWriter, r *gohttp.Request) {
+		if false && r.Method != gohttp.MethodOptions && h.hasRecentSeen(r) {
+			gohttp.Error(
+				w,
+				gohttp.StatusText(gohttp.StatusUnauthorized),
+				gohttp.StatusUnauthorized,
+			)
+			return
+		}
+
+		path := auth.CanonicalizeURI(r.URL.Path)
+		if strings.HasPrefix(path, "/ipfs") {
+			path = "/ipfs"
+		} else if strings.HasPrefix(path, "/ipns") {
+			path = "/ipns"
+		}
+
+		if !h.wl[path] {
+			gohttp.Error(
+				w,
+				gohttp.StatusText(gohttp.StatusNotFound),
+				gohttp.StatusNotFound,
+			)
+			return
+		}
+		if r.Method != gohttp.MethodOptions && h.pk != nil {
+			if err := auth.VerifyRequest(r, h.pk); err != nil {
+				if err == auth.ErrReqSigMissing && h.redirectOnFailure {
+					redirectToStarbase(w, r, h.starbaseURL)
+				} else {
+					log.Debug("Authentication failure", "error", err)
+					gohttp.Error(
+						w,
+						gohttp.StatusText(gohttp.StatusUnauthorized),
+						gohttp.StatusUnauthorized,
+					)
+				}
+				return
+			}
+		}
+
+		// Reset query params and headers to trim unexpected params and
+		// headers from requests. This ensures all params and headers
+		// are guarded by Starbase signature.
+		orig := r.URL.Query()
+		query := url.Values{}
+		query.Set(http.ParamP3Args, orig.Get(http.ParamP3Args))
+		query.Set(http.ParamP3Sig, orig.Get(http.ParamP3Sig))
+		r.URL.RawQuery = query.Encode()
+		r.Header = gohttp.Header{}
+
+		// Recover query parameters and headers from P3 args.
+		p3args := query.Get(http.ParamP3Args)
+		if p3args != "" {
+			args, err := http.DecodeArgs(p3args)
+			if err != nil {
+				log.Debug("Error decoding P3 args", "error", err)
+				gohttp.Error(
+					w,
+					gohttp.StatusText(gohttp.StatusBadRequest),
+					gohttp.StatusBadRequest,
+				)
+				return
+			}
+			for k, v := range args.Params {
+				query.Set(k, v)
+			}
+			r.URL.RawQuery = query.Encode()
+
+			for k, v := range args.Headers {
+				r.Header.Set(k, v)
+			}
+
+			r = r.WithContext(SetArgsFromCtx(r.Context(), args))
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
+func redirectToStarbase(
+	w gohttp.ResponseWriter,
+	r *gohttp.Request,
+	target *url.URL,
+) {
+	url := *r.URL
+	url.Scheme = target.Scheme
+	url.Host = target.Host
+	gohttp.Redirect(w, r, url.String(), gohttp.StatusTemporaryRedirect)
+}

@@ -1,0 +1,48 @@
+name: go-coverage
+
+on:
+  schedule:
+    - cron: "0 21 * * *" # every day at 21:00 UTC
+
+defaults:
+  run:
+    # shell default shell to bash for all OS
+    shell: bash
+
+jobs:
+  go-run-coverage:
+    name: go-run-coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: install-go
+        uses: actions/setup-go@v2
+        with:
+          go-version: 1.19
+
+      - name: checkout-code
+        uses: actions/checkout@v2
+
+      - name: setup-cache
+        uses: actions/cache@v2
+        with:
+          path: .env
+          key: go-coverage-env
+
+      - name: private-module-access
+        run: |
+         git config --global url."https://x-oauth-basic:${{ secrets.ACTION_REPO_ACCESS }}@github.com/photon-storage/go-photon".insteadOf "https://github.com/photon-storage/go-photon"
+         git config --global url."https://x-oauth-basic:${{ secrets.ACTION_REPO_ACCESS }}@github.com/photon-storage/go-rc-pinner".insteadOf "https://github.com/photon-storage/go-rc-pinner"
+
+      - name: run-test
+        run: |
+          if ! (grep -q -e '^flags.*\badx\b' /proc/cpuinfo) 2>/dev/null; then
+            export CGO_CFLAGS="-O -D__BLST_PORTABLE__"
+          fi
+          go test -timeout=10m -coverprofile=profile.out ./... && tail -n +2 profile.out > profile.out.tmp && mv profile.out.tmp profile.out
+
+      - name: report-coverage
+        uses: codecov/codecov-action@v2.1.0
+        with:
+          files: ./profile.out
+          fail_ci_if_error: true
+          verbose: true
