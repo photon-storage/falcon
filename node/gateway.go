@@ -3,13 +3,13 @@ package node
 import (
 	"context"
 	"net"
+	"net/http"
 	gohttp "net/http"
 	"strconv"
 	"strings"
 	"sync"
 
 	cmdshttp "github.com/ipfs/go-ipfs-cmds/http"
-	"github.com/ipfs/go-libipfs/gateway"
 	ipfsgw "github.com/ipfs/go-libipfs/gateway"
 	iface "github.com/ipfs/interface-go-ipfs-core"
 	"github.com/ipfs/interface-go-ipfs-core/options"
@@ -73,14 +73,31 @@ func initFalconGateway(
 		})
 	}
 
+	rcfg, err := nd.Repo.Config()
+	if err != nil {
+		return nil, err
+	}
+	coreapi, err := coreapi.NewCoreAPI(
+		nd,
+		options.Api.FetchBlocks(!rcfg.Gateway.NoFetch),
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	publicGws := publicGatewaySpecs(rcfg)
+	auth, err := newAuthHandler(prepareHostnameGateways(publicGws))
+	if err != nil {
+		return nil, err
+	}
+	report := newReportHandler(coreapi)
+
 	opts := []corehttp.ServeOption{
-		gatewayOption(cctx),
-		// There is a corehttp.HostnameOption() from kubo. However, that
-		// option overrides mux and requires to be before gatewayOption().
-		// It always redirects /ipns/{CID} request to {CID}.hostname/.
-		// With hostnameOption() accepts both request types and does not
-		// redirect.
-		hostnameOption(cctx),
+		//corehttp.HostnameOption(),
+		// With hostnameOption() needs to happen before other mux
+		// pattern matching.
+		hostnameOption(cctx, rcfg, publicGws, auth, report),
+		gatewayOption(cctx, rcfg, coreapi, auth, report),
 		corehttp.VersionOption(),
 	}
 
@@ -106,99 +123,53 @@ func initFalconGateway(
 	return errc, nil
 }
 
-func hostnameOption(cctx *oldcmds.Context) corehttp.ServeOption {
+func hostnameOption(
+	cctx *oldcmds.Context,
+	rcfg *config.Config,
+	publicGws map[string]*ipfsgw.Specification,
+	auth *authHandler,
+	report *reportHandler,
+) corehttp.ServeOption {
 	return func(
 		nd *core.IpfsNode,
 		_ net.Listener,
 		mux *gohttp.ServeMux,
 	) (*gohttp.ServeMux, error) {
-		rcfg, err := nd.Repo.Config()
-		if err != nil {
-			return nil, err
-		}
-
 		gwAPI, err := newGatewayAPI(nd)
 		if err != nil {
 			return nil, err
 		}
 
-		// TODO(kmax): when NoDNSLink == false, it could crash on an invalid
-		// URL. For example, http://bafybeib3ffl2teiqdncv3mkz4r23b5ctrwkzrrhctdbne6iboayxuxk5ui.localhost/root2/root3/root4/index.html
-		// where .ipfs is missing before localhost. It causes stack overflow.
-		// The problem can not be reproduced on desktop client with Kubo 0.20.0
-		publicGws := map[string]*gateway.Specification{
-			"localhost": {
-				Paths:         []string{"/ipfs", "/ipns"},
-				NoDNSLink:     true, // rcfg.Gateway.NoDNSLink,
-				UseSubdomains: true,
-			},
-			Cfg().GW3Hostname: {
-				Paths:         []string{"/ipfs", "/ipns"},
-				NoDNSLink:     true, // rcfg.Gateway.NoDNSLink,
-				UseSubdomains: true,
-			},
-		}
-
-		// Follow the same logic from corehttp.convertPublicGateways()
-		for h, gw := range rcfg.Gateway.PublicGateways {
-			if gw == nil {
-				delete(publicGws, h)
-				continue
-			}
-
-			publicGws[h] = &gateway.Specification{
-				Paths:         gw.Paths,
-				NoDNSLink:     true, // gw.NoDNSLink,
-				UseSubdomains: gw.UseSubdomains,
-				InlineDNSLink: gw.InlineDNSLink.WithDefault(
-					config.DefaultInlineDNSLink,
-				),
-			}
-		}
-
-		mux.Handle("/", gateway.WithHostname(
-			mux,
+		nextMux := http.NewServeMux()
+		mux.Handle("/", auth.wrap(report.wrap(ipfsgw.WithHostname(
+			nextMux,
 			gwAPI,
 			publicGws,
-			true), // rcfg.Gateway.NoDNSLink),
-		)
+			rcfg.Gateway.NoDNSLink),
+		)))
 
-		return mux, nil
+		return nextMux, nil
 	}
 }
 
-func gatewayOption(cctx *oldcmds.Context) corehttp.ServeOption {
+func gatewayOption(
+	cctx *oldcmds.Context,
+	rcfg *config.Config,
+	coreapi iface.CoreAPI,
+	auth *authHandler,
+	report *reportHandler,
+) corehttp.ServeOption {
 	return func(
 		nd *core.IpfsNode,
 		lis net.Listener,
 		mux *gohttp.ServeMux,
 	) (*gohttp.ServeMux, error) {
-		rcfg, err := nd.Repo.Config()
+		ipfsHandler, err := buildIpfsHandler(nd, rcfg, coreapi)
 		if err != nil {
 			return nil, err
 		}
 
-		api, err := coreapi.NewCoreAPI(
-			nd,
-			options.Api.FetchBlocks(!rcfg.Gateway.NoFetch),
-		)
-		if err != nil {
-			return nil, err
-		}
-
-		auth, err := newAuthHandler()
-		if err != nil {
-			return nil, err
-		}
-
-		report := newReportHandler(api)
-
-		ipfsHandler, err := buildIpfsHandler(nd, rcfg, api)
-		if err != nil {
-			return nil, err
-		}
-
-		extHandlers := newExtendedHandlers(nd, rcfg, api)
+		extHandlers := newExtendedHandlers(nd, rcfg, coreapi)
 
 		mux.Handle("/ipfs/", auth.wrap(report.wrap(ipfsHandler)))
 		mux.Handle("/ipns/", auth.wrap(report.wrap(ipfsHandler)))
@@ -222,7 +193,7 @@ func gatewayOption(cctx *oldcmds.Context) corehttp.ServeOption {
 func buildIpfsHandler(
 	nd *core.IpfsNode,
 	rcfg *config.Config,
-	api iface.CoreAPI,
+	coreapi iface.CoreAPI,
 ) (gohttp.Handler, error) {
 	headers := make(map[string][]string, len(rcfg.Gateway.HTTPHeaders))
 	for h, v := range rcfg.Gateway.HTTPHeaders {
@@ -241,7 +212,7 @@ func buildIpfsHandler(
 	readable := ipfsgw.NewHandler(gwCfg, gwAPI)
 	writable := &writableGatewayHandler{
 		config: &gwCfg,
-		api:    api,
+		api:    coreapi,
 	}
 
 	return gohttp.HandlerFunc(func(w gohttp.ResponseWriter, r *gohttp.Request) {
@@ -319,4 +290,37 @@ func patchCORSVars(cfg *cmdshttp.ServerConfig, addr net.Addr) {
 		newOrigins[i] = o
 	}
 	cfg.SetAllowedOrigins(newOrigins...)
+}
+
+func publicGatewaySpecs(rcfg *config.Config) map[string]*ipfsgw.Specification {
+	publicGws := map[string]*ipfsgw.Specification{
+		"localhost": {
+			Paths:         []string{"/ipfs/", "/ipns/"},
+			NoDNSLink:     rcfg.Gateway.NoDNSLink,
+			UseSubdomains: true,
+		},
+		Cfg().GW3Hostname: {
+			Paths:         []string{"/ipfs/", "/ipns/"},
+			NoDNSLink:     rcfg.Gateway.NoDNSLink,
+			UseSubdomains: true,
+		},
+	}
+	// Follow the same logic from corehttp.convertPublicGateways()
+	for h, gw := range rcfg.Gateway.PublicGateways {
+		if gw == nil {
+			delete(publicGws, h)
+			continue
+		}
+
+		publicGws[h] = &ipfsgw.Specification{
+			Paths:         gw.Paths,
+			NoDNSLink:     gw.NoDNSLink,
+			UseSubdomains: gw.UseSubdomains,
+			InlineDNSLink: gw.InlineDNSLink.WithDefault(
+				config.DefaultInlineDNSLink,
+			),
+		}
+	}
+
+	return publicGws
 }

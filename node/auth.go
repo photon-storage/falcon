@@ -1,7 +1,6 @@
 package node
 
 import (
-	"context"
 	"hash/fnv"
 	gohttp "net/http"
 	"net/url"
@@ -15,35 +14,16 @@ import (
 	"github.com/photon-storage/go-gw3/common/http"
 )
 
-const (
-	ctxArgsKey = "ctx_args"
-)
-
-func SetArgsFromCtx(ctx context.Context, args *http.Args) context.Context {
-	return context.WithValue(ctx, ctxArgsKey, args)
-}
-
-func GetArgsFromCtx(ctx context.Context) *http.Args {
-	v := ctx.Value(ctxArgsKey)
-	if v == nil {
-		return nil
-	}
-	args, ok := v.(*http.Args)
-	if !ok {
-		return nil
-	}
-	return args
-}
-
 type authHandler struct {
 	pk                libp2pcrypto.PubKey
 	redirectOnFailure bool
 	starbaseURL       *url.URL
+	gws               *hostnameGateways
 	wl                map[string]bool
 	recentSeen        *lru.Cache[uint64, bool]
 }
 
-func newAuthHandler() (*authHandler, error) {
+func newAuthHandler(gws *hostnameGateways) (*authHandler, error) {
 	cfg := Cfg()
 	var pk libp2pcrypto.PubKey
 	var starbaseURL *url.URL
@@ -68,8 +48,8 @@ func newAuthHandler() (*authHandler, error) {
 	}
 
 	wl := map[string]bool{}
-	for _, path := range cfg.Auth.Whitelist {
-		wl[path] = true
+	for _, ns := range cfg.Auth.Whitelist {
+		wl[ns] = true
 	}
 
 	// Assuming QPS = 10k
@@ -82,6 +62,7 @@ func newAuthHandler() (*authHandler, error) {
 		pk:                pk,
 		redirectOnFailure: cfg.Auth.RedirectOnFailure,
 		starbaseURL:       starbaseURL,
+		gws:               gws,
 		wl:                wl,
 		recentSeen:        cache,
 	}, nil
@@ -96,6 +77,11 @@ func (h *authHandler) hasRecentSeen(r *gohttp.Request) bool {
 
 func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 	return gohttp.HandlerFunc(func(w gohttp.ResponseWriter, r *gohttp.Request) {
+		if GetNoAuthFromCtx(r.Context()) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		if false && r.Method != gohttp.MethodOptions && h.hasRecentSeen(r) {
 			gohttp.Error(
 				w,
@@ -105,14 +91,27 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 			return
 		}
 
-		path := auth.CanonicalizeURI(r.URL.Path)
-		if strings.HasPrefix(path, "/ipfs") {
-			path = "/ipfs"
-		} else if strings.HasPrefix(path, "/ipns") {
-			path = "/ipns"
+		wlPath := auth.CanonicalizeURI(r.URL.Path)
+		if strings.HasPrefix(wlPath, "/ipfs/") {
+			wlPath = "/ipfs"
+		} else if strings.HasPrefix(wlPath, "/ipns/") {
+			wlPath = "/ipns"
+		} else if !strings.HasPrefix(wlPath, "/api/v0/") {
+			// Check subdomain namespace
+			host := r.Host
+			if xHost := r.Header.Get("X-Forwarded-Host"); xHost != "" {
+				host = xHost
+			}
+			if _, _, ns, _, ok := h.gws.knownSubdomainDetails(host); ok {
+				if ns == "ipfs" {
+					wlPath = "/ipfs"
+				} else if ns == "ipns" {
+					wlPath = "/ipns"
+				}
+			}
 		}
 
-		if !h.wl[path] {
+		if !h.wl[wlPath] {
 			gohttp.Error(
 				w,
 				gohttp.StatusText(gohttp.StatusNotFound),
@@ -135,6 +134,8 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 				return
 			}
 		}
+
+		r = r.WithContext(SetNoAuthFromCtx(r.Context()))
 
 		// Reset query params and headers to trim unexpected params and
 		// headers from requests. This ensures all params and headers
