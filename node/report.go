@@ -30,18 +30,24 @@ var (
 )
 
 type reportHandler struct {
-	api iface.CoreAPI
+	coreapi iface.CoreAPI
 }
 
-func newReportHandler(api iface.CoreAPI) *reportHandler {
+func newReportHandler(coreapi iface.CoreAPI) *reportHandler {
 	return &reportHandler{
-		api: api,
+		coreapi: coreapi,
 	}
 }
 
 // This could be chained after auth, which decoded args.
 func (h *reportHandler) wrap(next gohttp.Handler) gohttp.Handler {
 	return gohttp.HandlerFunc(func(w gohttp.ResponseWriter, r *gohttp.Request) {
+		if GetNoReportFromCtx(r.Context()) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		r = r.WithContext(SetNoReportFromCtx(r.Context()))
+
 		maxSize := 0
 		if args := GetArgsFromCtx(r.Context()); args != nil {
 			if str := args.GetArg(http.ArgP3Size); str != "" {
@@ -72,7 +78,7 @@ func (h *reportHandler) wrap(next gohttp.Handler) gohttp.Handler {
 
 			if err := reportRequest(
 				cr.Context(),
-				h.api,
+				h.coreapi,
 				cr,
 				ingr.size(),
 				egr.size(),
@@ -88,7 +94,7 @@ func (h *reportHandler) wrap(next gohttp.Handler) gohttp.Handler {
 
 func reportRequest(
 	ctx context.Context,
-	api iface.CoreAPI,
+	coreapi iface.CoreAPI,
 	r *gohttp.Request,
 	ingr int,
 	egr int,
@@ -103,7 +109,7 @@ func reportRequest(
 		if v != "" {
 			k, err := cid.Decode(v)
 			if err == nil {
-				sz, _ = calculateCidSize(ctx, api, k)
+				sz, _ = calculateCidSize(ctx, coreapi, k)
 			}
 		}
 		sz *= w
@@ -164,10 +170,10 @@ func reportRequest(
 
 func calculateCidSize(
 	ctx context.Context,
-	api iface.CoreAPI,
+	coreapi iface.CoreAPI,
 	k cid.Cid,
 ) (int, error) {
-	nodeGetter := mdag.NewSession(ctx, api.Dag())
+	nodeGetter := mdag.NewSession(ctx, coreapi.Dag())
 	root, err := nodeGetter.Get(ctx, k)
 	if err != nil {
 		return 0, err

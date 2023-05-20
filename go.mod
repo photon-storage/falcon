@@ -39,6 +39,7 @@ require (
 	github.com/photon-storage/go-gw3 v0.0.0-20230519051351-4bae2dc389fb
 	github.com/photon-storage/go-rc-pinner v0.0.0-20230511024706-695b2f70ae56
 	github.com/prometheus/client_golang v1.14.0
+	github.com/stretchr/testify v1.8.2
 	go.opentelemetry.io/otel v1.7.0
 	go.uber.org/fx v1.19.2
 	go.uber.org/zap v1.24.0
@@ -66,6 +67,7 @@ require (
 	github.com/crackcomm/go-gitignore v0.0.0-20170627025303-887ab5e44cc3 // indirect
 	github.com/cskr/pubsub v1.0.2 // indirect
 	github.com/d4l3k/messagediff v1.2.1 // indirect
+	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0 // indirect
 	github.com/dgraph-io/badger v1.6.2 // indirect
@@ -194,6 +196,7 @@ require (
 	github.com/photon-storage/fastssz v0.0.0-20220401135229-47aa49fe839f // indirect
 	github.com/photon-storage/photon-proto v0.0.0-20220806134259-8b3f28ad0258 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/polydawn/refmt v0.89.0 // indirect
 	github.com/prometheus/client_model v0.3.0 // indirect
 	github.com/prometheus/common v0.42.0 // indirect
@@ -251,6 +254,7 @@ require (
 	google.golang.org/grpc v1.53.0 // indirect
 	google.golang.org/protobuf v1.30.0 // indirect
 	gopkg.in/square/go-jose.v2 v2.5.1 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 	lukechampine.com/blake3 v1.1.7 // indirect
 	nhooyr.io/websocket v1.8.7 // indirect
 )
