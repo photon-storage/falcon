@@ -93,9 +93,13 @@ func initFalconGateway(
 	report := newReportHandler(coreapi)
 
 	opts := []corehttp.ServeOption{
-		//corehttp.HostnameOption(),
-		// With hostnameOption() needs to happen before other mux
-		// pattern matching.
+		// The order of options is important. apiOption and hostnameOption
+		// share the same mux. Due to the matching rule, /status, /api/v0
+		// are more specific so they get handled first. After that, it falls
+		// through to the "/" handler registered by the hostnameOption, which
+		// handles /ipfs or subdomain requests. The subdomain requests are
+		// reformated to /ipfs and handled by the next mux registered by
+		// the gatewayOption.
 		apiOption(cctx, rcfg, coreapi, auth, report),
 		hostnameOption(cctx, rcfg, publicGws, auth, report),
 		gatewayOption(cctx, rcfg, coreapi, auth, report),
