@@ -96,6 +96,7 @@ func initFalconGateway(
 		//corehttp.HostnameOption(),
 		// With hostnameOption() needs to happen before other mux
 		// pattern matching.
+		apiOption(cctx, rcfg, coreapi, auth, report),
 		hostnameOption(cctx, rcfg, publicGws, auth, report),
 		gatewayOption(cctx, rcfg, coreapi, auth, report),
 		corehttp.VersionOption(),
@@ -123,6 +124,35 @@ func initFalconGateway(
 	return errc, nil
 }
 
+func apiOption(
+	cctx *oldcmds.Context,
+	rcfg *config.Config,
+	coreapi iface.CoreAPI,
+	auth *authHandler,
+	report *reportHandler,
+) corehttp.ServeOption {
+	return func(
+		nd *core.IpfsNode,
+		lis net.Listener,
+		mux *gohttp.ServeMux,
+	) (*gohttp.ServeMux, error) {
+		extHandlers := newExtendedHandlers(nd, rcfg, coreapi)
+
+		mux.Handle("/status", extHandlers.status())
+		mux.Handle("/status/", extHandlers.status())
+
+		mux.Handle(apiPrefix+"/", auth.wrap(
+			report.wrap(buildApiHandler(*cctx, lis)),
+		))
+		// Custom /api/v0 APIs.
+		mux.Handle(apiPrefix+"/pin/count", auth.wrap(
+			report.wrap(extHandlers.pinnedCount()),
+		))
+
+		return mux, nil
+	}
+}
+
 func hostnameOption(
 	cctx *oldcmds.Context,
 	rcfg *config.Config,
@@ -132,7 +162,7 @@ func hostnameOption(
 ) corehttp.ServeOption {
 	return func(
 		nd *core.IpfsNode,
-		_ net.Listener,
+		lis net.Listener,
 		mux *gohttp.ServeMux,
 	) (*gohttp.ServeMux, error) {
 		gwAPI, err := newGatewayAPI(nd)
@@ -161,7 +191,7 @@ func gatewayOption(
 ) corehttp.ServeOption {
 	return func(
 		nd *core.IpfsNode,
-		lis net.Listener,
+		_ net.Listener,
 		mux *gohttp.ServeMux,
 	) (*gohttp.ServeMux, error) {
 		ipfsHandler, err := buildIpfsHandler(nd, rcfg, coreapi)
@@ -169,20 +199,8 @@ func gatewayOption(
 			return nil, err
 		}
 
-		extHandlers := newExtendedHandlers(nd, rcfg, coreapi)
-
 		mux.Handle("/ipfs/", auth.wrap(report.wrap(ipfsHandler)))
 		mux.Handle("/ipns/", auth.wrap(report.wrap(ipfsHandler)))
-		mux.Handle(apiPrefix+"/", auth.wrap(
-			report.wrap(buildApiHandler(*cctx, lis)),
-		))
-		// Custom /api/v0 APIs.
-		mux.Handle(apiPrefix+"/pin/count", auth.wrap(
-			report.wrap(extHandlers.pinnedCount()),
-		))
-
-		mux.Handle("/status", extHandlers.status())
-		mux.Handle("/status/", extHandlers.status())
 
 		return mux, nil
 	}
@@ -297,12 +315,12 @@ func publicGatewaySpecs(rcfg *config.Config) map[string]*ipfsgw.Specification {
 		"localhost": {
 			Paths:         []string{"/ipfs/", "/ipns/"},
 			NoDNSLink:     rcfg.Gateway.NoDNSLink,
-			UseSubdomains: true,
+			UseSubdomains: false,
 		},
 		Cfg().GW3Hostname: {
 			Paths:         []string{"/ipfs/", "/ipns/"},
 			NoDNSLink:     rcfg.Gateway.NoDNSLink,
-			UseSubdomains: true,
+			UseSubdomains: false,
 		},
 	}
 	// Follow the same logic from corehttp.convertPublicGateways()
