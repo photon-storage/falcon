@@ -160,6 +160,16 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 				)
 				return
 			}
+
+			if _, err := auth.ValidateTimestamp(args); err != nil {
+				gohttp.Error(
+					w,
+					gohttp.StatusText(gohttp.StatusBadRequest),
+					gohttp.StatusBadRequest,
+				)
+				return
+			}
+
 			for k, v := range args.Params {
 				query.Set(k, v)
 			}
