@@ -153,6 +153,10 @@ func apiOption(
 			report.wrap(extHandlers.pinnedCount()),
 		))
 
+		mux.Handle(apiPrefix+"/name/broadcast", auth.wrap(
+			report.wrap(extHandlers.nameBroadcast()),
+		))
+
 		return mux, nil
 	}
 }
