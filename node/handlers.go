@@ -1,14 +1,17 @@
 package node
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	gohttp "net/http"
 
 	"github.com/ipfs/go-cid"
+	"github.com/ipfs/go-ipns"
 	iface "github.com/ipfs/interface-go-ipfs-core"
 	config "github.com/ipfs/kubo/config"
 	"github.com/ipfs/kubo/core"
+	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/photon-storage/go-gw3/common/http"
 	rcpinner "github.com/photon-storage/go-rc-pinner"
@@ -105,6 +108,51 @@ func (h *extendedHandlers) pinnedCount() gohttp.HandlerFunc {
 				Message: "ok",
 			},
 		)
+	})
+}
+
+type NameBroadcastResult struct {
+	Message string `json:"message"`
+}
+
+func (h *extendedHandlers) nameBroadcast() gohttp.HandlerFunc {
+	return gohttp.HandlerFunc(func(w gohttp.ResponseWriter, r *gohttp.Request) {
+		query := r.URL.Query()
+		peerID, err := peer.Decode(query.Get(http.ParamIPFSKey))
+		if err != nil {
+			writeJSON(w, gohttp.StatusBadRequest, &NameBroadcastResult{
+				Message: err.Error(),
+			})
+			return
+		}
+
+		k := ipns.RecordKey(peerID)
+		v, err := base64.StdEncoding.DecodeString(query.Get(http.ParamIPFSArg))
+		if err != nil {
+			writeJSON(w, gohttp.StatusBadRequest, &NameBroadcastResult{
+				Message: err.Error(),
+			})
+			return
+		}
+
+		validator := ipns.Validator{}
+		if err := validator.Validate(k, v); err != nil {
+			writeJSON(w, gohttp.StatusBadRequest, &NameBroadcastResult{
+				Message: err.Error(),
+			})
+			return
+		}
+
+		if err := h.nd.Routing.PutValue(r.Context(), k, v); err != nil {
+			writeJSON(w, gohttp.StatusBadRequest, &NameBroadcastResult{
+				Message: err.Error(),
+			})
+			return
+		}
+
+		writeJSON(w, gohttp.StatusOK, &NameBroadcastResult{
+			Message: "ok",
+		})
 	})
 }
 
