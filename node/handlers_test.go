@@ -175,16 +175,15 @@ func TestNameBroadcast(t *testing.T) {
 
 	r, err := gohttp.NewRequest(
 		gohttp.MethodGet,
-		fmt.Sprintf(
-			"/api/v0/name/broadcast?%s=%s&%s=%s",
-			http.ParamIPFSKey,
-			k,
-			http.ParamIPFSArg,
-			v,
-		),
+		"/api/v0/name/broadcast",
 		nil,
 	)
 	require.NoError(t, err)
+	query := r.URL.Query()
+	query.Set(http.ParamIPFSKey, k)
+	query.Set(http.ParamIPFSArg, v)
+	r.URL.RawQuery = query.Encode()
+
 	w := httptest.NewRecorder()
 	h.nameBroadcast()(w, r)
 	require.Equal(t, gohttp.StatusOK, w.Code)
