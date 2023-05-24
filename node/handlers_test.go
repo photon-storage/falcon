@@ -174,7 +174,7 @@ func TestNameBroadcast(t *testing.T) {
 	)
 
 	r, err := gohttp.NewRequest(
-		gohttp.MethodGet,
+		gohttp.MethodPost,
 		"/api/v0/name/broadcast",
 		nil,
 	)
