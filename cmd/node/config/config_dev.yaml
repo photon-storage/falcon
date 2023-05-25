@@ -31,6 +31,7 @@ auth:
     #- /api/v0/files/mv
     #- /api/v0/files/cp
     #- /api/v0/files/flush
+    - /api/v0/name/broadcast
 
 ipfs_config:
   max_mem_mbytes: 512
