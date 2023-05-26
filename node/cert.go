@@ -89,7 +89,7 @@ func saveCert(pemSk, pemCert []byte, at time.Time) error {
 	return nil
 }
 
-func purgeExpiredCerts() error {
+func purgeExpiredCerts(keepLatest bool) error {
 	ts, err := findLatest()
 	if err != nil {
 		return err
@@ -100,7 +100,7 @@ func purgeExpiredCerts() error {
 	}
 
 	keep := ""
-	if time.Since(time.Unix(ts, 0)) < certExpiration {
+	if keepLatest && time.Since(time.Unix(ts, 0)) < certExpiration {
 		keep = fmt.Sprintf("%v", ts)
 	}
 

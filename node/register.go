@@ -23,8 +23,9 @@ type Cert struct {
 }
 
 type RegisterResult struct {
-	Status string `json:"status"`
-	Cert   *Cert  `json:"certificate,omitempty"`
+	Status            string `json:"status"`
+	Cert              *Cert  `json:"certificate,omitempty"`
+	RequireCertUpdate bool   `json:"require_cert_update"`
 }
 
 func registerFalconNode(ctx context.Context, nd *core.IpfsNode) error {
@@ -33,7 +34,7 @@ func registerFalconNode(ctx context.Context, nd *core.IpfsNode) error {
 	// Purge expired certficates and retrieve from starbase if none exists.
 	fetchCert := false
 	if cfg.RequireTLSCert() {
-		if err := purgeExpiredCerts(); err != nil {
+		if err := purgeExpiredCerts(true); err != nil {
 			return err
 		}
 		if _, err := findCertAndKeyFile(); err != nil {
@@ -116,6 +117,17 @@ func registerFalconNode(ctx context.Context, nd *core.IpfsNode) error {
 					"status", res.Status,
 				)
 				break
+			}
+
+			// Did not request cert but starbase requires a refresh.
+			// This is triggered by host IP change. Delete all certs as
+			// domain has changed. If fetchCert was true, all certs should
+			// have been purged already (resulting in a not found err)
+			if !fetchCert && res.RequireCertUpdate {
+				if err := purgeExpiredCerts(false); err != nil {
+					return err
+				}
+				fetchCert = true
 			}
 
 			if res.Cert != nil {
