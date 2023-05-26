@@ -50,7 +50,7 @@ listen_addresses:
 # secret_key_base64: Read from env var FALCON_SECRET_KEY
 
 extern_services:
-  starbase: https://starbase.gw3.io
+  starbase: https://gw3.io
   spaceport: https://spaceport.gw3.io
 
 discovery:
