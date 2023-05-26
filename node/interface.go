@@ -126,12 +126,6 @@ func InitFalconBeforeNodeConstruction(
 		return err
 	}
 
-	if Cfg().RequireTLSCert() {
-		if err := refreshTLSCert(); err != nil {
-			return err
-		}
-	}
-
 	if err := overrideIPFSConfig(rpo); err != nil {
 		return err
 	}
@@ -162,13 +156,16 @@ func InitFalconAfterNodeConstruction(
 
 	log.Warn("IPFS node created", "ID", nd.Identity)
 
-	errc, err := initFalconGateway(req.Context, cctx, nd)
-	if err != nil {
+	if err := registerFalconNode(req.Context, nd); err != nil {
 		return nil, err
 	}
 
 	initMetrics(req.Context, 9981)
-	go registerFalconNode(req.Context, nd)
+
+	errc, err := initFalconGateway(req.Context, cctx, nd)
+	if err != nil {
+		return nil, err
+	}
 
 	return errc, nil
 }

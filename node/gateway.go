@@ -45,10 +45,11 @@ func initFalconGateway(
 	certFile := ""
 	keyFile := ""
 	if cfg.RequireTLSCert() {
-		var err error
-		certFile, keyFile, err = findCertAndKeyFile()
-		if err != nil {
+		if certPath, err := findCertAndKeyFile(); err != nil {
 			return nil, err
+		} else {
+			certFile = certPath.certFile
+			keyFile = certPath.keyFile
 		}
 	}
 
