@@ -28,7 +28,7 @@ type RegisterResult struct {
 	RequireCertUpdate bool   `json:"require_cert_update"`
 }
 
-func registerFalconNode(ctx context.Context, nd *core.IpfsNode) error {
+func registerFalconNode(ctx context.Context, _ *core.IpfsNode) error {
 	cfg := Cfg()
 
 	// Purge expired certficates and retrieve from starbase if none exists.
@@ -46,116 +46,135 @@ func registerFalconNode(ctx context.Context, nd *core.IpfsNode) error {
 		}
 	}
 
+	register := func() (bool, error) {
+		req, err := gohttp.NewRequest(
+			gohttp.MethodPost,
+			fmt.Sprintf(
+				"%v/gateway/register",
+				cfg.ExternalServices.Starbase,
+			),
+			nil,
+		)
+		if err != nil {
+			log.Error("Error creating registration request", "error", err)
+			// Return as this is not fixable with retry.
+			return true, err
+		}
+
+		query := url.Values{}
+		query.Set("pk", cfg.PublicKeyBase64)
+		query.Set("host", cfg.Discovery.PublicHost)
+		query.Set("port", fmt.Sprintf("%v", cfg.Discovery.PublicPort))
+		if fetchCert {
+			query.Set("cert", "true")
+		}
+		req.URL.RawQuery = query.Encode()
+
+		if err := auth.SignRequest(
+			req,
+			http.NewArgs().
+				SetArg(http.ArgP3Node, cfg.PublicKeyBase64).
+				SetArg(
+					http.ArgP3Unixtime,
+					fmt.Sprintf("%v", time.Now().Unix()),
+				),
+			cfg.SecretKey,
+		); err != nil {
+			log.Error("Error signing registration request", "error", err)
+			// Return as this is not fixable with retry.
+			return true, err
+		}
+
+		resp, err := cfg.HttpClient.Do(req)
+		if err != nil {
+			log.Error("Error registering falcon node", "error", err)
+			return false, nil
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != gohttp.StatusOK {
+			log.Error("Unexpected response code",
+				"code", resp.StatusCode,
+			)
+			return false, nil
+		}
+
+		enc, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			log.Error("Error reading response body", "error", err)
+			return false, nil
+		}
+		var res RegisterResult
+		if err := json.Unmarshal(enc, &res); err != nil {
+			log.Error("Error decoding starbase response", "error", err)
+			return false, nil
+		}
+		if res.Status != "ok" {
+			log.Error("Starbase responds with non-ok status",
+				"status", res.Status,
+			)
+			return false, nil
+		}
+
+		// Did not request cert but starbase requires a refresh.
+		// This is triggered by host IP change. Delete all certs as
+		// domain has changed. If fetchCert was true, all certs should
+		// have been purged already (resulting in a not found err)
+		if !fetchCert && res.RequireCertUpdate {
+			if err := purgeExpiredCerts(false); err != nil {
+				return true, err
+			}
+			fetchCert = true
+		}
+
+		if res.Cert != nil {
+			if err := saveCert(
+				[]byte(res.Cert.PrivateKey),
+				[]byte(res.Cert.Certificate),
+				res.Cert.At,
+			); err != nil {
+				log.Error("Error saving certificate", "error", err)
+				return false, nil
+			}
+		}
+
+		done := true
+		if fetchCert {
+			if _, err := findCertAndKeyFile(); err != nil {
+				done = false
+			}
+		}
+
+		if done {
+			log.Info("Falcon node registration successful",
+				"host", cfg.Discovery.PublicHost,
+				"port", cfg.Discovery.PublicPort,
+			)
+			return true, nil
+		} else {
+			log.Info("Waiting for TLS certificate to become available")
+			return false, nil
+		}
+	}
+
+	done, err := register()
+	if err != nil {
+		return err
+	}
+	if done {
+		return nil
+	}
+
 	ticker := time.NewTicker(60 * time.Second)
 	for {
 		select {
 		case <-ticker.C:
-			req, err := gohttp.NewRequest(
-				gohttp.MethodPost,
-				fmt.Sprintf(
-					"%v/gateway/register",
-					cfg.ExternalServices.Starbase,
-				),
-				nil,
-			)
+			done, err := register()
 			if err != nil {
-				log.Error("Error creating registration request", "error", err)
-				// Return as this is not fixable with retry.
 				return err
 			}
-
-			query := url.Values{}
-			query.Set("pk", cfg.PublicKeyBase64)
-			query.Set("host", cfg.Discovery.PublicHost)
-			query.Set("port", fmt.Sprintf("%v", cfg.Discovery.PublicPort))
-			if fetchCert {
-				query.Set("cert", "true")
-			}
-			req.URL.RawQuery = query.Encode()
-
-			if err := auth.SignRequest(
-				req,
-				http.NewArgs().
-					SetArg(http.ArgP3Node, cfg.PublicKeyBase64).
-					SetArg(
-						http.ArgP3Unixtime,
-						fmt.Sprintf("%v", time.Now().Unix()),
-					),
-				cfg.SecretKey,
-			); err != nil {
-				log.Error("Error signing registration request", "error", err)
-				// Return as this is not fixable with retry.
-				return err
-			}
-
-			resp, err := cfg.HttpClient.Do(req)
-			if err != nil {
-				log.Error("Error registering falcon node", "error", err)
-				break
-			}
-			defer resp.Body.Close()
-
-			if resp.StatusCode != gohttp.StatusOK {
-				log.Error("Unexpected response code",
-					"code", resp.StatusCode,
-				)
-				break
-			}
-
-			enc, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				log.Error("Error reading response body", "error", err)
-				break
-			}
-			var res RegisterResult
-			if err := json.Unmarshal(enc, &res); err != nil {
-				log.Error("Error decoding starbase response", "error", err)
-				break
-			}
-			if res.Status != "ok" {
-				log.Error("Starbase responds with non-ok status",
-					"status", res.Status,
-				)
-				break
-			}
-
-			// Did not request cert but starbase requires a refresh.
-			// This is triggered by host IP change. Delete all certs as
-			// domain has changed. If fetchCert was true, all certs should
-			// have been purged already (resulting in a not found err)
-			if !fetchCert && res.RequireCertUpdate {
-				if err := purgeExpiredCerts(false); err != nil {
-					return err
-				}
-				fetchCert = true
-			}
-
-			if res.Cert != nil {
-				if err := saveCert(
-					[]byte(res.Cert.PrivateKey),
-					[]byte(res.Cert.Certificate),
-					res.Cert.At,
-				); err != nil {
-					log.Error("Error saving certificate", "error", err)
-					break
-				}
-			}
-
-			done := true
-			if fetchCert {
-				if _, err := findCertAndKeyFile(); err != nil {
-					done = false
-				}
-			}
-
 			if done {
-				log.Info("Falcon node registration successful",
-					"host", cfg.Discovery.PublicHost,
-					"port", cfg.Discovery.PublicPort,
-				)
 				return nil
-			} else {
-				log.Info("Waiting for TLS certificate to become available")
 			}
 
 		case <-ctx.Done():
