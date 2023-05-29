@@ -38,14 +38,14 @@ require (
 	github.com/multiformats/go-multiaddr v0.9.0
 	github.com/multiformats/go-multiaddr-dns v0.3.1
 	github.com/photon-storage/go-common v0.0.0-20230504104528-a237492a0c5b
-	github.com/photon-storage/go-gw3 v0.0.0-20230523080108-594609f354e1
+	github.com/photon-storage/go-gw3 v0.0.0-20230529031233-c4a6b6a35b3a
 	github.com/photon-storage/go-rc-pinner v0.0.0-20230511024706-695b2f70ae56
 	github.com/prometheus/client_golang v1.14.0
 	github.com/stretchr/testify v1.8.2
 	go.opentelemetry.io/otel v1.7.0
 	go.uber.org/fx v1.19.2
 	go.uber.org/zap v1.24.0
-	golang.org/x/sys v0.7.0
+	golang.org/x/sys v0.8.0
 	gopkg.in/yaml.v2 v2.4.0
 )
 
@@ -71,7 +71,7 @@ require (
 	github.com/d4l3k/messagediff v1.2.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/davidlazar/go-crypto v0.0.0-20200604182044-b73af7476f6c // indirect
-	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.1.0 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.2.0 // indirect
 	github.com/dgraph-io/badger v1.6.2 // indirect
 	github.com/dgraph-io/ristretto v0.0.2 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
@@ -176,7 +176,7 @@ require (
 	github.com/miekg/dns v1.1.53 // indirect
 	github.com/mikioh/tcpinfo v0.0.0-20190314235526-30a79bb1804b // indirect
 	github.com/mikioh/tcpopt v0.0.0-20190314235656-172688c1accc // indirect
-	github.com/minio/sha256-simd v1.0.0 // indirect
+	github.com/minio/sha256-simd v1.0.1 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect

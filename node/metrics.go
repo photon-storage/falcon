@@ -19,5 +19,14 @@ func initMetrics(ctx context.Context, port int) {
 	metrics.NewCounter("request_call_total")
 	metrics.NewCounter("request_log_err_total")
 
+	metrics.NewCounter("rc_pinner_pin_call_total")
+	metrics.NewCounter("rc_pinner_pin_err_total")
+	metrics.NewCounter("rc_pinner_unpin_call_total")
+	metrics.NewCounter("rc_pinner_unpin_err_total")
+	metrics.NewGauge("rc_pinner_direct_pinned_total")
+	metrics.NewGauge("rc_pinner_direct_pinned_total")
+	metrics.NewGauge("rc_pinner_recursive_pinned_total")
+	metrics.NewGauge("rc_pinner_internal_pinned_total")
+
 	metrics.GaugeSet("restart_at_seconds", float64(time.Now().Unix()))
 }
