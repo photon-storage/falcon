@@ -324,12 +324,12 @@ func publicGatewaySpecs(rcfg *config.Config) map[string]*ipfsgw.Specification {
 		"localhost": {
 			Paths:         []string{"/ipfs/", "/ipns/"},
 			NoDNSLink:     rcfg.Gateway.NoDNSLink,
-			UseSubdomains: true,
+			UseSubdomains: false,
 		},
 		Cfg().GW3Hostname: {
 			Paths:         []string{"/ipfs/", "/ipns/"},
 			NoDNSLink:     rcfg.Gateway.NoDNSLink,
-			UseSubdomains: true,
+			UseSubdomains: false,
 		},
 	}
 	// Follow the same logic from corehttp.convertPublicGateways()
