@@ -11,7 +11,6 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/photon-storage/go-common/log"
-	rcpinner "github.com/photon-storage/go-rc-pinner"
 )
 
 // This file defines interfaces for hooking Falcon logic into the
@@ -150,7 +149,7 @@ func InitFalconAfterNodeConstruction(
 	nd *core.IpfsNode,
 ) (<-chan error, error) {
 	// Sanity check.
-	if _, ok := nd.Pinning.(*rcpinner.RcPinner); !ok {
+	if _, ok := nd.Pinning.(*wrappedPinner); !ok {
 		return nil, ErrRcPinnerMissing
 	}
 
