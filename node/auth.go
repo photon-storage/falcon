@@ -5,6 +5,7 @@ import (
 	gohttp "net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	lru "github.com/hashicorp/golang-lru/v2"
 	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
@@ -161,7 +162,10 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 				return
 			}
 
-			if _, err := auth.ValidateTimestamp(args); err != nil {
+			if _, err := auth.ValidateTimestamp(
+				args,
+				10*time.Minute,
+			); err != nil {
 				gohttp.Error(
 					w,
 					gohttp.StatusText(gohttp.StatusBadRequest),
