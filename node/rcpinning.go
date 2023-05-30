@@ -140,8 +140,10 @@ func (p *wrappedPinner) DirectKeys(ctx context.Context) ([]cid.Cid, error) {
 }
 
 func (p *wrappedPinner) RecursiveKeys(ctx context.Context) ([]cid.Cid, error) {
+	metrics.CounterInc("rc_pinner_recursive_keys_call_total")
 	cids, err := p.pinner.RecursiveKeys(ctx)
 	if err != nil {
+		metrics.CounterInc("rc_pinner_recursive_keys_err_total")
 		return nil, err
 	}
 
