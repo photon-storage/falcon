@@ -27,5 +27,7 @@ func initMetrics(ctx context.Context, port int) {
 	metrics.NewGauge("rc_pinner_recursive_pinned_total")
 	metrics.NewGauge("rc_pinner_internal_pinned_total")
 
+	metrics.NewGauge("connected_peers_total")
+
 	metrics.GaugeSet("restart_at_seconds", float64(time.Now().Unix()))
 }
