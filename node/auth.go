@@ -78,6 +78,8 @@ func (h *authHandler) hasRecentSeen(r *gohttp.Request) bool {
 
 func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 	return gohttp.HandlerFunc(func(w gohttp.ResponseWriter, r *gohttp.Request) {
+		w = newContentSentry(w)
+
 		if GetNoAuthFromCtx(r.Context()) {
 			next.ServeHTTP(w, r)
 			return
