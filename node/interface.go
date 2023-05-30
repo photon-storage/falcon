@@ -160,6 +160,7 @@ func InitFalconAfterNodeConstruction(
 	}
 
 	initMetrics(req.Context, 9981)
+	go updateNodeMetrics(req.Context, nd)
 
 	errc, err := initFalconGateway(req.Context, cctx, nd)
 	if err != nil {
