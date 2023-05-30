@@ -39,7 +39,7 @@ func (s *contentSentry) Write(data []byte) (int, error) {
 		if bytes.Contains(data, rl.exact) {
 			s.flagged = true
 			metrics.CounterInc(fmt.Sprintf(
-				"request_blocked_total.source#%v",
+				"request_blocked_total.rule#%v",
 				rl.name,
 			))
 			return 0, ErrBadContent

@@ -34,7 +34,7 @@ func initMetrics(ctx context.Context, port int) {
 
 	for _, rl := range rules {
 		metrics.NewCounter(fmt.Sprintf(
-			"request_blocked_total.source#%v",
+			"request_blocked_total.rule#%v",
 			rl.name,
 		))
 	}
