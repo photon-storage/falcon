@@ -72,6 +72,7 @@ func (s *contentSentry) Write(data []byte) (int, error) {
 		if err := s.flush(); err != nil {
 			return 0, err
 		}
+		s.buf = nil
 		return len(data), nil
 	}
 
