@@ -108,8 +108,7 @@ func (s *contentSentry) WriteHeader(statusCode int) {
 }
 
 func (s *contentSentry) flush() error {
-	// Empty batch buffer. Either no detection is enabled or no accumulation
-	// happened since the last flush.
+	// Empty batch buffer. No accumulation happened since the last flush.
 	if len(s.buf) == 0 {
 		return nil
 	}
