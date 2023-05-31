@@ -10,6 +10,7 @@ import (
 	ipld "github.com/ipfs/go-ipld-format"
 	"github.com/ipfs/go-merkledag"
 	"github.com/ipfs/kubo/repo"
+	"go.uber.org/atomic"
 
 	"github.com/photon-storage/go-common/metrics"
 	rcpinner "github.com/photon-storage/go-rc-pinner"
@@ -31,6 +32,7 @@ func RcPinning(
 				dstore:     rootDstore,
 			},
 		),
+		pinnedCount: atomic.NewInt64(0),
 	}
 }
 
@@ -59,7 +61,8 @@ func (s *syncDagService) Session(ctx context.Context) ipld.NodeGetter {
 }
 
 type wrappedPinner struct {
-	pinner pin.Pinner
+	pinner      pin.Pinner
+	pinnedCount *atomic.Int64
 }
 
 func (p *wrappedPinner) IsPinned(
@@ -87,8 +90,10 @@ func (p *wrappedPinner) Pin(
 		metrics.CounterInc("rc_pinner_pin_err_total")
 		return err
 	}
+	p.pinnedCount.Inc()
 	return nil
 }
+
 func (p *wrappedPinner) Unpin(
 	ctx context.Context,
 	cid cid.Cid,
@@ -99,6 +104,7 @@ func (p *wrappedPinner) Unpin(
 		metrics.CounterInc("rc_pinner_unpin_err_total")
 		return err
 	}
+	p.pinnedCount.Dec()
 	return nil
 }
 
@@ -108,7 +114,7 @@ func (p *wrappedPinner) Update(
 	to cid.Cid,
 	unpin bool,
 ) error {
-	return p.pinner.Update(ctx, from, to, unpin)
+	return rcpinner.ErrUpdateUnsupported
 }
 
 func (p *wrappedPinner) CheckIfPinned(
@@ -130,13 +136,8 @@ func (p *wrappedPinner) Flush(ctx context.Context) error {
 }
 
 func (p *wrappedPinner) DirectKeys(ctx context.Context) ([]cid.Cid, error) {
-	cids, err := p.pinner.DirectKeys(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	metrics.GaugeSet("rc_pinner_direct_pinned_total", float64(len(cids)))
-	return cids, nil
+	// RcPinner does not implement this.
+	return nil, nil
 }
 
 func (p *wrappedPinner) RecursiveKeys(ctx context.Context) ([]cid.Cid, error) {
@@ -147,16 +148,24 @@ func (p *wrappedPinner) RecursiveKeys(ctx context.Context) ([]cid.Cid, error) {
 		return nil, err
 	}
 
-	metrics.GaugeSet("rc_pinner_recursive_pinned_total", float64(len(cids)))
 	return cids, nil
 }
 
 func (p *wrappedPinner) InternalPins(ctx context.Context) ([]cid.Cid, error) {
-	cids, err := p.pinner.InternalPins(ctx)
+	// RcPinner does not implement this.
+	return nil, nil
+}
+
+func (p *wrappedPinner) initPinnedCount(ctx context.Context) error {
+	cids, err := p.pinner.RecursiveKeys(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	metrics.GaugeSet("rc_pinner_internal_pinned_total", float64(len(cids)))
-	return cids, nil
+	p.pinnedCount.Store(int64(len(cids)))
+	return nil
+}
+
+func (p *wrappedPinner) getPinnedCount() int64 {
+	return p.pinnedCount.Load()
 }

@@ -89,6 +89,7 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 		defer func() {
 			sw.flush()
 
+			metrics.CounterInc("request_call_total")
 			flagged := sw.getFlaggedRuleName()
 			if flagged != "" {
 				metrics.CounterInc(fmt.Sprintf(

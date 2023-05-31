@@ -2,7 +2,9 @@ package node
 
 import (
 	"errors"
+	"fmt"
 
+	"github.com/enescakir/emoji"
 	cmds "github.com/ipfs/go-ipfs-cmds"
 	oldcmds "github.com/ipfs/kubo/commands"
 	"github.com/ipfs/kubo/core"
@@ -148,12 +150,17 @@ func InitFalconAfterNodeConstruction(
 	cctx *oldcmds.Context,
 	nd *core.IpfsNode,
 ) (<-chan error, error) {
-	// Sanity check.
-	if _, ok := nd.Pinning.(*wrappedPinner); !ok {
-		return nil, ErrRcPinnerMissing
-	}
-
 	log.Warn("IPFS node created", "ID", nd.Identity)
+
+	log.Info(fmt.Sprintf("Launching falcon %v ...", emoji.Rocket))
+	// Sanity check.
+	if p, ok := nd.Pinning.(*wrappedPinner); !ok {
+		return nil, ErrRcPinnerMissing
+	} else {
+		if err := p.initPinnedCount(req.Context); err != nil {
+			return nil, err
+		}
+	}
 
 	if err := registerFalconNode(req.Context, nd); err != nil {
 		return nil, err

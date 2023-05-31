@@ -26,6 +26,13 @@ func updateNodeMetrics(
 				"connected_peers_total",
 				float64(len(connected)),
 			)
+
+			if p, ok := nd.Pinning.(*wrappedPinner); ok {
+				metrics.GaugeSet(
+					"pinned_count_total",
+					float64(p.getPinnedCount()),
+				)
+			}
 		}
 	}
 }
