@@ -1,6 +1,7 @@
 package node
 
 import (
+	"context"
 	"fmt"
 	"hash/fnv"
 	gohttp "net/http"
@@ -85,7 +86,12 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 			return
 		}
 
-		sw := newContentSentry(w)
+		// Global request timeout: 10 mins
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
+		defer cancel()
+		r = r.WithContext(ctx)
+
+		sw := newContentSentry(ctx, w)
 		defer func() {
 			sw.flush()
 

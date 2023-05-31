@@ -2,9 +2,11 @@ package node
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/photon-storage/go-common/testing/require"
 )
@@ -32,6 +34,9 @@ func TestCheckSentryRule(t *testing.T) {
 }
 
 func TestIOSentry(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
 	cases := []struct {
 		name string
 		run  func(t *testing.T)
@@ -41,7 +46,7 @@ func TestIOSentry(t *testing.T) {
 			run: func(t *testing.T) {
 				for _, rl := range rules {
 					w := httptest.NewRecorder()
-					s := newContentSentry(w)
+					s := newContentSentry(ctx, w)
 					s.Header().Set("Content-Type", "text/plain")
 					s.WriteHeader(http.StatusOK)
 					data := append(rl.exact, []byte("test")...)
@@ -58,7 +63,7 @@ func TestIOSentry(t *testing.T) {
 			run: func(t *testing.T) {
 				for _, rl := range rules {
 					w := httptest.NewRecorder()
-					s := newContentSentry(w)
+					s := newContentSentry(ctx, w)
 					s.Header().Set("Content-Type", "text/html")
 					s.WriteHeader(http.StatusOK)
 
@@ -89,7 +94,7 @@ func TestIOSentry(t *testing.T) {
 			run: func(t *testing.T) {
 				for _, rl := range rules {
 					w := httptest.NewRecorder()
-					s := newContentSentry(w)
+					s := newContentSentry(ctx, w)
 					s.Header().Set("Content-Type", "text/html")
 					s.WriteHeader(http.StatusOK)
 
