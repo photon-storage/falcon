@@ -74,7 +74,7 @@ func (h *reportHandler) wrap(next gohttp.Handler) gohttp.Handler {
 		defer func(cr *gohttp.Request) {
 			metrics.CounterAdd("ingress_bytes", float64(ingr.size()))
 			metrics.CounterAdd("egress_bytes", float64(egr.size()))
-			metrics.CounterInc("request_call_total")
+			metrics.CounterInc("request_log_total")
 
 			if err := reportRequest(
 				cr.Context(),
