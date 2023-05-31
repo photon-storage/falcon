@@ -1,6 +1,7 @@
 package node
 
 import (
+	"fmt"
 	"hash/fnv"
 	gohttp "net/http"
 	"net/url"
@@ -11,6 +12,7 @@ import (
 	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/photon-storage/go-common/log"
+	"github.com/photon-storage/go-common/metrics"
 	"github.com/photon-storage/go-gw3/common/auth"
 	"github.com/photon-storage/go-gw3/common/http"
 )
@@ -78,16 +80,29 @@ func (h *authHandler) hasRecentSeen(r *gohttp.Request) bool {
 
 func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 	return gohttp.HandlerFunc(func(w gohttp.ResponseWriter, r *gohttp.Request) {
-		w = newContentSentry(w)
-
 		if GetNoAuthFromCtx(r.Context()) {
 			next.ServeHTTP(w, r)
 			return
 		}
 
+		sw := newContentSentry(w)
+		defer func() {
+			sw.flush()
+
+			flagged := sw.getFlaggedRuleName()
+			if flagged != "" {
+				metrics.CounterInc(fmt.Sprintf(
+					"request_blocked_total.rule#%v",
+					flagged,
+				))
+			} else {
+				metrics.CounterInc("request_served_total")
+			}
+		}()
+
 		if false && r.Method != gohttp.MethodOptions && h.hasRecentSeen(r) {
 			gohttp.Error(
-				w,
+				sw,
 				gohttp.StatusText(gohttp.StatusUnauthorized),
 				gohttp.StatusUnauthorized,
 			)
@@ -116,7 +131,7 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 
 		if !h.wl[wlPath] {
 			gohttp.Error(
-				w,
+				sw,
 				gohttp.StatusText(gohttp.StatusNotFound),
 				gohttp.StatusNotFound,
 			)
@@ -125,11 +140,11 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 		if r.Method != gohttp.MethodOptions && h.pk != nil {
 			if err := auth.VerifyRequest(r, h.pk); err != nil {
 				if err == auth.ErrReqSigMissing && h.redirectOnFailure {
-					redirectToStarbase(w, r, h.starbaseURL)
+					redirectToStarbase(sw, r, h.starbaseURL)
 				} else {
 					log.Debug("Authentication failure", "error", err)
 					gohttp.Error(
-						w,
+						sw,
 						gohttp.StatusText(gohttp.StatusUnauthorized),
 						gohttp.StatusUnauthorized,
 					)
@@ -157,7 +172,7 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 			if err != nil {
 				log.Debug("Error decoding P3 args", "error", err)
 				gohttp.Error(
-					w,
+					sw,
 					gohttp.StatusText(gohttp.StatusBadRequest),
 					gohttp.StatusBadRequest,
 				)
@@ -169,7 +184,7 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 				10*time.Minute,
 			); err != nil {
 				gohttp.Error(
-					w,
+					sw,
 					gohttp.StatusText(gohttp.StatusBadRequest),
 					gohttp.StatusBadRequest,
 				)
@@ -188,7 +203,7 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 			r = r.WithContext(SetArgsFromCtx(r.Context(), args))
 		}
 
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(sw, r)
 	})
 }
 
