@@ -102,6 +102,7 @@ func (s *contentSentry) Write(data []byte) (int, error) {
 // should be enabled based on content type. If check is enabled, delay sending
 // header and status code so we could send http.StatusGone when bad content
 // is found.
+// NOTE: it is not guaranteed WriteHeader is ever called.
 func (s *contentSentry) WriteHeader(statusCode int) {
 	ctype := s.w.Header().Get("Content-Type")
 	s.enableDetection = shouldEnableDetection(ctype)
@@ -112,6 +113,12 @@ func (s *contentSentry) flush() error {
 	// Empty batch buffer. No accumulation happened since the last flush.
 	if len(s.buf) == 0 {
 		return nil
+	}
+
+	// Default status code to 200 if none is set.
+	// It does not need mutex here as it is not calling s.w.WriteHeader.
+	if s.statusCode == 0 {
+		s.WriteHeader(http.StatusOK)
 	}
 
 	// Check buf data if no flag was raised previously.
