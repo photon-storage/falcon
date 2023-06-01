@@ -167,9 +167,17 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 		// are guarded by Starbase signature.
 		orig := r.URL.Query()
 		query := url.Values{}
-		query.Set(http.ParamP3Args, orig.Get(http.ParamP3Args))
-		query.Set(http.ParamP3Sig, orig.Get(http.ParamP3Sig))
-		r.URL.RawQuery = query.Encode()
+		if h.pk == nil &&
+			(strings.HasPrefix(r.Host, "localhost") ||
+				strings.HasPrefix(r.Host, "127.0.0.1")) {
+			// Use original query parameters if this is local run with
+			// auth disabled.
+			// NOTE: r.URL.Host can be empty.
+			query = orig
+		} else {
+			query.Set(http.ParamP3Args, orig.Get(http.ParamP3Args))
+			query.Set(http.ParamP3Sig, orig.Get(http.ParamP3Sig))
+		}
 		r.Header = gohttp.Header{}
 
 		// Recover query parameters and headers from P3 args.
@@ -201,14 +209,13 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 			for k, v := range args.Params {
 				query.Set(k, v)
 			}
-			r.URL.RawQuery = query.Encode()
-
 			for k, v := range args.Headers {
 				r.Header.Set(k, v)
 			}
 
 			r = r.WithContext(SetArgsFromCtx(r.Context(), args))
 		}
+		r.URL.RawQuery = query.Encode()
 
 		next.ServeHTTP(sw, r)
 	})
