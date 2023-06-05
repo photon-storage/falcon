@@ -65,10 +65,6 @@ func fileExists(path string) bool {
 }
 
 func saveCert(pemSk, pemCert []byte, at time.Time) error {
-	if err := os.MkdirAll(certsPath(), 0644); err != nil {
-		return err
-	}
-
 	dir := subdir(at.Unix())
 	if err := os.MkdirAll(dir, 0644); err != nil {
 		return err
