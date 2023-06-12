@@ -87,13 +87,13 @@ func registerFalconNode(ctx context.Context, _ *core.IpfsNode) error {
 
 		resp, err := cfg.HttpClient.Do(req)
 		if err != nil {
-			log.Error("Error registering falcon node", "error", err)
+			log.Warn("Error registering falcon node", "error", err)
 			return false, nil
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode != gohttp.StatusOK {
-			log.Error("Unexpected response code",
+			log.Warn("Unexpected response code",
 				"code", resp.StatusCode,
 			)
 			return false, nil
@@ -101,16 +101,16 @@ func registerFalconNode(ctx context.Context, _ *core.IpfsNode) error {
 
 		enc, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
-			log.Error("Error reading response body", "error", err)
+			log.Warn("Error reading response body", "error", err)
 			return false, nil
 		}
 		var res RegisterResult
 		if err := json.Unmarshal(enc, &res); err != nil {
-			log.Error("Error decoding starbase response", "error", err)
+			log.Warn("Error decoding starbase response", "error", err)
 			return false, nil
 		}
 		if res.Status != "ok" {
-			log.Error("Starbase responds with non-ok status",
+			log.Warn("Starbase responds with non-ok status",
 				"status", res.Status,
 			)
 			return false, nil
@@ -133,7 +133,7 @@ func registerFalconNode(ctx context.Context, _ *core.IpfsNode) error {
 				[]byte(res.Cert.Certificate),
 				res.Cert.At,
 			); err != nil {
-				log.Error("Error saving certificate", "error", err)
+				log.Warn("Error saving certificate", "error", err)
 				return false, nil
 			}
 		}

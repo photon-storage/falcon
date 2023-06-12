@@ -162,8 +162,12 @@ func InitFalconAfterNodeConstruction(
 		}
 	}
 
-	if err := registerFalconNode(req.Context, nd); err != nil {
-		return nil, err
+	if Cfg().RequireTLSCert() {
+		if err := registerFalconNode(req.Context, nd); err != nil {
+			return nil, err
+		}
+	} else {
+		go registerFalconNode(req.Context, nd)
 	}
 
 	initMetrics(req.Context, 9981)
