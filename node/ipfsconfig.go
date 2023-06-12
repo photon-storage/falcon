@@ -94,6 +94,9 @@ func overrideIPFSConfig(repo repo.Repo) error {
 		"IPFS-Hash",
 	}
 
+	// Force IPNS pubsub
+	rcfg.Ipns.UsePubsub = config.True
+
 	// Check if config has been changed.
 	updatedJson, err := config.Marshal(rcfg)
 	if err != nil {

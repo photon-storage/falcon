@@ -6,10 +6,10 @@ import (
 )
 
 func ensureFalconPath() error {
-	if err := os.MkdirAll(falconPath(), 0644); err != nil {
+	if err := os.MkdirAll(falconPath(), 0755); err != nil {
 		return err
 	}
-	return os.MkdirAll(certsPath(), 0644)
+	return os.MkdirAll(certsPath(), 0755)
 }
 
 func falconPath() string {
