@@ -63,6 +63,7 @@ type Config struct {
 		ConnMgrHighWater   int           `yaml:"conn_mgr_high_water"`
 		ConnMgrGracePeriod time.Duration `yaml:"conn_mgr_grace_period"`
 		DisableRelayClient bool          `yaml:"disable_relay_client"`
+		Peers              []string      `yaml:"peers"`
 	} `yaml:"ipfs_config"`
 
 	ListenAddresses []ListenAddress `yaml:"listen_addresses"`
