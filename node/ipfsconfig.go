@@ -7,6 +7,7 @@ import (
 
 	"github.com/ipfs/kubo/config"
 	"github.com/ipfs/kubo/repo"
+	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/photon-storage/go-common/log"
 )
@@ -71,6 +72,16 @@ func overrideIPFSConfig(repo repo.Repo) error {
 		rcfg.Swarm.RelayClient.Enabled = config.False
 	} else {
 		rcfg.Swarm.RelayClient.Enabled = config.True
+	}
+
+	for _, idStr := range falconCfg.IPFSConfig.Peers {
+		id, err := peer.Decode(idStr)
+		if err != nil {
+			return err
+		}
+		rcfg.Peering.Peers = append(rcfg.Peering.Peers, peer.AddrInfo{
+			ID: id,
+		})
 	}
 
 	// Enforce Gateway CORs

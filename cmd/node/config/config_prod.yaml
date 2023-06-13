@@ -40,6 +40,13 @@ ipfs_config:
   conn_mgr_high_water: 256
   conn_mgr_grace_period: 1m
   disable_relay_client: true
+  peers:
+    - 12D3KooWCEhRzyNjsij9UZnu93xKZ2kfCte97dDvKefffmSWndPS # SG0
+    - 12D3KooWDTXS9fyqb4z7ChxkpXEShj2JFUosYGyKSjLMU5TKtmBD # SG1
+    - 12D3KooWCu1aeEZnCMQdvHSoSpP4DGYLAuGrxsXLEELKsaDmGcuA # SG2
+    - 12D3KooWQiBmvTugRnYkNwBT9XPQSu9agrnrwr81Rp1N9fnjQCyH # USW0
+    - 12D3KooWFgWMqxaKnvgahrQeMXsz5PP3NrVPLtBjGDPkAATM47AX # USW1
+    - 12D3KooWEp29YiHxBaC1BgwZQJEiH8vsn1vir4XyzjyyxhA4J2EM # USW2
 
 listen_addresses:
   - address: ":443"
