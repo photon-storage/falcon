@@ -7,6 +7,9 @@ import (
 	"io/ioutil"
 	"net/http"
 	"sort"
+
+	"github.com/enescakir/emoji"
+	"github.com/photon-storage/go-common/log"
 )
 
 func gatewayPost(
@@ -55,6 +58,9 @@ func httpCall(
 	header http.Header,
 	body io.Reader,
 ) (int, http.Header, []byte, error) {
+	if path[0] == '/' {
+		path = path[1:]
+	}
 	req, err := http.NewRequestWithContext(
 		ctx,
 		method,
@@ -85,8 +91,11 @@ func httpCall(
 }
 
 func logStep(format string, a ...any) {
-	fmt.Printf(">>>>>\n")
-	fmt.Printf(format, a...)
+	fmt.Printf(
+		"%v  %s\n",
+		emoji.RightArrow,
+		log.White(fmt.Sprintf(format, a...)),
+	)
 }
 
 func logResp(code int, header http.Header, data []byte, err error) error {
@@ -111,10 +120,12 @@ func logResp(code int, header http.Header, data []byte, err error) error {
 				}
 			}
 		}
-		if len(data) == 0 {
-			fmt.Printf("Response Body: <empty>\n")
-		} else {
-			fmt.Printf("Response Body: %s\n", data)
+		if true {
+			if len(data) == 0 {
+				fmt.Printf("Response Body: <empty>\n")
+			} else {
+				fmt.Printf("Response Body: %s\n", data)
+			}
 		}
 	}
 

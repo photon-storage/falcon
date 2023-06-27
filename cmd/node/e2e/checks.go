@@ -36,7 +36,7 @@ var checks = []*check{
 				consts.AcceptVndIpldDagCbor,
 				// consts.AcceptVndIpfsIpnsRecord,
 			} {
-				logStep("Fetch Accept Type: %v\n", t)
+				logStep("Fetch Accept Type: %v", t)
 
 				header := http.Header{}
 				header.Set("Accept", string(t))
@@ -60,7 +60,7 @@ var checks = []*check{
 	&check{
 		desc: "IPFS: POST data, redirect and fetch",
 		run: func(ctx context.Context, cfg config) error {
-			logStep("Post data\n")
+			logStep("Post data")
 
 			code, header, data, err := gatewayPost(
 				ctx,
@@ -76,7 +76,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("Fetch posted data from redirected URL\n")
+			logStep("Fetch posted data from redirected URL")
 
 			redirect := header.Get("Location")
 			if redirect == "" {
@@ -103,7 +103,7 @@ var checks = []*check{
 	&check{
 		desc: "IPFS: DAG operation with PUT, GET and DELETE",
 		run: func(ctx context.Context, cfg config) error {
-			logStep("Put file 0\n")
+			logStep("Put file 0")
 
 			// CID of empty directory.
 			root := "QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"
@@ -122,7 +122,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("Put file 1\n")
+			logStep("Put file 1")
 
 			root = header.Get("Ipfs-Hash")
 			if root == "" {
@@ -143,7 +143,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("Put file 2\n")
+			logStep("Put file 2")
 
 			root = header.Get("Ipfs-Hash")
 			if root == "" {
@@ -165,7 +165,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("Put file 3\n")
+			logStep("Put file 3")
 
 			root = header.Get("Ipfs-Hash")
 			if root == "" {
@@ -191,7 +191,7 @@ var checks = []*check{
 				return fmt.Errorf("Root CID missing")
 			}
 
-			logStep("Get a_dir\n")
+			logStep("Get a_dir")
 
 			header = http.Header{}
 			header.Set("Accept", string(consts.AcceptVndIpldRaw))
@@ -205,7 +205,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("Get file 3\n")
+			logStep("Get file 3")
 
 			code, header, data, err = gatewayGet(
 				ctx,
@@ -217,7 +217,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("Delete file 3\n")
+			logStep("Delete file 3")
 
 			code, header, data, err = gatewayDel(
 				ctx,
@@ -231,7 +231,7 @@ var checks = []*check{
 
 			// The following two requests demonstrate PUT on ipfs/ creates
 			// DAG nodes instead of MFS files.
-			logStep("API files/ls\n")
+			logStep("API files/ls")
 			code, header, data, err = gatewayPost(
 				ctx,
 				cfg,
@@ -243,7 +243,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("API dag/get\n")
+			logStep("API dag/get")
 			code, header, data, err = gatewayPost(
 				ctx,
 				cfg,
@@ -271,7 +271,7 @@ var checks = []*check{
 				consts.AcceptVndIpldDagCbor,
 				// consts.AcceptVndIpfsIpnsRecord,
 			} {
-				logStep("Fetch Accept Type: %v\n", t)
+				logStep("Fetch Accept Type: %v", t)
 
 				header := http.Header{}
 				header.Set("Accept", string(t))
@@ -297,7 +297,7 @@ var checks = []*check{
 	&check{
 		desc: "IPNS: GET by Libp2pKey",
 		run: func(ctx context.Context, cfg config) error {
-			logStep("Post data\n")
+			logStep("Post data")
 
 			code, header, data, err := gatewayPost(
 				ctx,
@@ -318,7 +318,7 @@ var checks = []*check{
 				return fmt.Errorf("CID missing")
 			}
 
-			logStep("Publish IPNS record\n")
+			logStep("Publish IPNS record")
 
 			// RPC API
 			code, header, data, err = gatewayPost(
@@ -337,7 +337,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("Fetch IPNS record\n")
+			logStep("Fetch IPNS record")
 
 			header = http.Header{}
 			header.Set("Accept", string(consts.AcceptVndIpfsIpnsRecord))
@@ -354,7 +354,7 @@ var checks = []*check{
 	&check{
 		desc: "API: List pinned CIDs",
 		run: func(ctx context.Context, cfg config) error {
-			logStep("List pins\n")
+			logStep("List pins")
 
 			code, header, data, err := gatewayPost(
 				ctx,
@@ -376,7 +376,7 @@ var checks = []*check{
 		skip: true,
 		desc: "API: Clean up all pinned CIDs",
 		run: func(ctx context.Context, cfg config) error {
-			logStep("List pins\n")
+			logStep("List pins")
 
 			code, header, data, err := gatewayPost(
 				ctx,
@@ -394,7 +394,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("Unpins\n")
+			logStep("Unpins")
 			for k, v := range res.Keys {
 				if v.Type == "indirect" {
 					continue
@@ -419,7 +419,7 @@ var checks = []*check{
 	&check{
 		desc: "API: POST data, pin twice, verify and unpin",
 		run: func(ctx context.Context, cfg config) error {
-			logStep("Post data\n")
+			logStep("Post data")
 
 			code, header, data, err := gatewayPost(
 				ctx,
@@ -441,7 +441,7 @@ var checks = []*check{
 			}
 
 			for iter := 0; iter < 1; iter++ {
-				logStep("Pin data, iter = %v\n", iter)
+				logStep("Pin data, iter = %v", iter)
 				done := false
 				for !done {
 					select {
@@ -474,16 +474,16 @@ var checks = []*check{
 							}
 
 							if len(res.Pins) > 0 {
-								logStep("Pin complete\n")
+								logStep("Pin complete")
 								done = true
 							}
-							logStep("Pin in progress %v\n", res.Progress)
+							logStep("Pin in progress %v", res.Progress)
 						}
 					}
 				}
 			}
 
-			logStep("Verify CID\n")
+			logStep("Verify CID")
 
 			code, header, data, err = gatewayPost(
 				ctx,
@@ -496,7 +496,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("Unpin\n")
+			logStep("Unpin")
 			code, header, data, err = gatewayPost(
 				ctx,
 				cfg,
@@ -513,7 +513,7 @@ var checks = []*check{
 		run: func(ctx context.Context, cfg config) error {
 			k := "QmP8jTG1m9GSDJLCbeWhVSVgEzCPPwXRdCRuJtQ5Tz9Kc9"
 
-			logStep("Pin external CID\n")
+			logStep("Pin external CID")
 			done := false
 			for !done {
 				select {
@@ -549,15 +549,15 @@ var checks = []*check{
 						}
 
 						if len(res.Pins) > 0 {
-							logStep("Pin complete\n")
+							logStep("Pin complete")
 							done = true
 						}
-						logStep("Pin in progress %v\n", res.Progress)
+						logStep("Pin in progress %v", res.Progress)
 					}
 				}
 			}
 
-			logStep("Unpin\n")
+			logStep("Unpin")
 			code, header, data, err := gatewayPost(
 				ctx,
 				cfg,
@@ -572,7 +572,7 @@ var checks = []*check{
 	&check{
 		desc: "API: DAG operations",
 		run: func(ctx context.Context, cfg config) error {
-			logStep("Put DAG leaves\n")
+			logStep("Put DAG leaves")
 
 			nd0, _ := merkledag.NewRawNode([]byte("DAG Test - File0")).
 				MarshalJSON()
@@ -604,7 +604,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("Stat DAG node & build the root node\n")
+			logStep("Stat DAG node & build the root node")
 
 			root := merkledag.NodeWithData([]byte("DAG Test - Root"))
 			idx := 0
@@ -647,7 +647,7 @@ var checks = []*check{
 				idx++
 			}
 
-			logStep("Put DAG root\n")
+			logStep("Put DAG root")
 
 			jsonRoot, _ := root.MarshalJSON()
 			r = ipfsfiles.NewMultiFileReader(
@@ -676,7 +676,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("Get DAG node\n")
+			logStep("Get DAG node")
 
 			code, header, data, err = gatewayPost(
 				ctx,
@@ -689,7 +689,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("Export DAG tree as a CAR file\n")
+			logStep("Export DAG tree as a CAR file")
 
 			code, header, data, err = gatewayPost(
 				ctx,
@@ -732,7 +732,7 @@ var checks = []*check{
 	&check{
 		desc: "API: MFS operations",
 		run: func(ctx context.Context, cfg config) error {
-			logStep("Write file0\n")
+			logStep("Write file0")
 
 			r := ipfsfiles.NewMultiFileReader(
 				ipfsfiles.NewMapDirectory(map[string]ipfsfiles.Node{
@@ -756,7 +756,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("Overwrite partial file0\n")
+			logStep("Overwrite partial file0")
 			r = ipfsfiles.NewMultiFileReader(
 				ipfsfiles.NewMapDirectory(map[string]ipfsfiles.Node{
 					"path": ipfsfiles.NewBytesFile([]byte(
@@ -779,7 +779,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("Write file1\n")
+			logStep("Write file1")
 			r = ipfsfiles.NewMultiFileReader(
 				ipfsfiles.NewMapDirectory(map[string]ipfsfiles.Node{
 					"path": ipfsfiles.NewBytesFile([]byte(
@@ -802,7 +802,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("Read file0\n")
+			logStep("Read file0")
 			code, header, data, err = gatewayPost(
 				ctx,
 				cfg,
@@ -817,7 +817,7 @@ var checks = []*check{
 				return fmt.Errorf("unexpected read content\n")
 			}
 
-			logStep("Read partial file0\n")
+			logStep("Read partial file0")
 			code, header, data, err = gatewayPost(
 				ctx,
 				cfg,
@@ -832,7 +832,7 @@ var checks = []*check{
 				return fmt.Errorf("unexpected read content\n")
 			}
 
-			logStep("Read partial file1\n")
+			logStep("Read partial file1")
 			code, header, data, err = gatewayPost(
 				ctx,
 				cfg,
@@ -847,11 +847,12 @@ var checks = []*check{
 				return fmt.Errorf("unexpected read content\n")
 			}
 
-			logStep("Mkdir\n")
+			ts := time.Now().Unix()
+			logStep("Mkdir")
 			code, header, data, err = gatewayPost(
 				ctx,
 				cfg,
-				"api/v0/files/mkdir?arg=/a_dir/child_dir",
+				fmt.Sprintf("api/v0/files/mkdir?arg=/a_dir/child_dir%v", ts),
 				header,
 				r,
 			)
@@ -859,7 +860,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("List dir\n")
+			logStep("List dir")
 			code, header, data, err = gatewayPost(
 				ctx,
 				cfg,
@@ -878,17 +879,18 @@ var checks = []*check{
 				return err
 			}
 
-			if len(res.Entries) != 2 ||
-				res.Entries[0].Name != "child_dir" ||
-				res.Entries[1].Name != "mfs_file1.txt" {
+			if !entriesContain(res.Entries, []string{
+				fmt.Sprintf("child_dir%v", ts),
+				"mfs_file1.txt",
+			}) {
 				return fmt.Errorf("unexpected MFS listing result")
 			}
 
-			logStep("Move\n")
+			logStep("Move")
 			code, header, data, err = gatewayPost(
 				ctx,
 				cfg,
-				"api/v0/files/mv?arg=/a_dir/child_dir&arg=/a_dir/dir_to_del",
+				fmt.Sprintf("api/v0/files/mv?arg=/a_dir/child_dir%v&arg=/a_dir/dir_to_del", ts),
 				header,
 				r,
 			)
@@ -896,7 +898,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("Copy\n")
+			logStep("Copy")
 			code, header, data, err = gatewayPost(
 				ctx,
 				cfg,
@@ -908,7 +910,7 @@ var checks = []*check{
 				return err
 			}
 
-			logStep("Remove\n")
+			logStep("Remove")
 			code, header, data, err = gatewayPost(
 				ctx,
 				cfg,
@@ -923,4 +925,24 @@ var checks = []*check{
 			return nil
 		},
 	},
+}
+
+func entriesContain(entries []mfs.NodeListing, vals []string) bool {
+	if len(entries) < len(vals) {
+		return false
+	}
+
+	for _, val := range vals {
+		found := false
+		for _, ent := range entries {
+			if ent.Name == val {
+				found = true
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+
+	return true
 }
