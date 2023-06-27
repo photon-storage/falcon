@@ -11,27 +11,28 @@ auth:
   whitelist:
     - /ipfs
     - /ipns
-    #- /api/v0/name/publish
     - /api/v0/pin/ls
     - /api/v0/pin/add
     # - /api/v0/pin/update
     - /api/v0/pin/rm
-    #- /api/v0/pin/verify
     - /api/v0/pin/count
     - /api/v0/dag/get
-    #- /api/v0/dag/put
-    #- /api/v0/dag/export
-    #- /api/v0/dag/import
     - /api/v0/dag/stat
-    #- /api/v0/files/ls
-    #- /api/v0/files/mkdir
-    #- /api/v0/files/read
-    #- /api/v0/files/write
-    #- /api/v0/files/rm
-    #- /api/v0/files/mv
-    #- /api/v0/files/cp
-    #- /api/v0/files/flush
     - /api/v0/name/broadcast
+    ## Following APIs are enabled for check runs
+    - /api/v0/pin/verify
+    - /api/v0/dag/put
+    - /api/v0/files/ls
+    - /api/v0/name/publish
+    - /api/v0/dag/import
+    - /api/v0/dag/export
+    - /api/v0/files/mkdir
+    - /api/v0/files/read
+    - /api/v0/files/write
+    - /api/v0/files/rm
+    - /api/v0/files/mv
+    - /api/v0/files/cp
+    - /api/v0/files/flush
 
 ipfs_config:
   max_mem_mbytes: 512

@@ -9,3 +9,6 @@ Command to start the falcon service:
 ```
 go run ./cmd/node/. daemon --init --falcon-config=./cmd/node/config/config_dev.yaml
 ```
+Or simply run `make`.
+
+It is recommended to run checks against changes made to node: `make checks`.

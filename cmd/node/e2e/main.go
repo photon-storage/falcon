@@ -4,19 +4,15 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"net/http"
 
+	"github.com/photon-storage/go-common/log"
 	"github.com/photon-storage/go-gw3/common/crypto"
 )
-
-type httpClient interface {
-	Do(req *http.Request) (*http.Response, error)
-}
 
 type config struct {
 	host string
 	port int
-	cli  httpClient
+	cli  *authClient
 }
 
 type check struct {
@@ -32,7 +28,7 @@ func main() {
 	}
 
 	flag.StringVar(&cfg.host, "host", "localhost", "host to request")
-	flag.IntVar(&cfg.port, "port", 8080, "port to request")
+	flag.IntVar(&cfg.port, "port", 80, "port to request")
 	flag.Parse()
 
 	ctx := context.Background()
@@ -43,15 +39,17 @@ func main() {
 		}
 
 		fmt.Printf("--------------------------------------------------\n")
-		fmt.Printf("Check: %v\n", c.desc)
+		fmt.Printf("%v\n", log.Blue(fmt.Sprintf("Run: %v", c.desc)))
 		if err := c.run(ctx, cfg); err != nil {
-			fmt.Printf("!!! Check FAILED: %v\n", err)
+			fmt.Printf("%v\n", log.Red(fmt.Sprintf("FAILED: %v", err)))
 			return
+		} else {
+			fmt.Printf("%v\n", log.Green(fmt.Sprintf("PASSED")))
 		}
 
 		if c.stop {
 			break
 		}
 	}
-	fmt.Printf("!!! All checks PASSED!\n")
+	fmt.Printf("%v\n", log.Green(fmt.Sprintf("All checks PASSED")))
 }

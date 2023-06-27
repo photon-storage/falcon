@@ -181,7 +181,7 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 		r.Header = gohttp.Header{}
 
 		// Recover query parameters and headers from P3 args.
-		p3args := query.Get(http.ParamP3Args)
+		p3args := orig.Get(http.ParamP3Args)
 		if p3args != "" {
 			args, err := http.DecodeArgs(p3args)
 			if err != nil {
@@ -207,10 +207,16 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 			}
 
 			for k, v := range args.Params {
-				query.Set(k, v)
+				parts := strings.Split(v, ";;;")
+				for _, part := range parts {
+					query.Add(k, part)
+				}
 			}
 			for k, v := range args.Headers {
-				r.Header.Set(k, v)
+				parts := strings.Split(v, ";;;")
+				for _, part := range parts {
+					r.Header.Add(k, part)
+				}
 			}
 
 			r = r.WithContext(SetArgsFromCtx(r.Context(), args))
