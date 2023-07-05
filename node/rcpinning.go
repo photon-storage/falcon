@@ -36,6 +36,13 @@ func RcPinning(
 	}
 }
 
+func getRcPinner(v pin.Pinner) *wrappedPinner {
+	if p, ok := v.(*wrappedPinner); ok {
+		return p
+	}
+	return nil
+}
+
 var (
 	_ merkledag.SessionMaker = (*syncDagService)(nil)
 	_ ipld.DAGService        = (*syncDagService)(nil)
@@ -61,7 +68,7 @@ func (s *syncDagService) Session(ctx context.Context) ipld.NodeGetter {
 }
 
 type wrappedPinner struct {
-	pinner      pin.Pinner
+	pinner      *rcpinner.RcPinner
 	pinnedCount *atomic.Int64
 }
 
@@ -156,6 +163,13 @@ func (p *wrappedPinner) InternalPins(ctx context.Context) ([]cid.Cid, error) {
 	return nil, nil
 }
 
+func (p *wrappedPinner) PinnedCount(
+	ctx context.Context,
+	c cid.Cid,
+) (uint16, error) {
+	return p.pinner.PinnedCount(ctx, c)
+}
+
 func (p *wrappedPinner) initPinnedCount(ctx context.Context) error {
 	cids, err := p.pinner.RecursiveKeys(ctx)
 	if err != nil {
@@ -166,6 +180,6 @@ func (p *wrappedPinner) initPinnedCount(ctx context.Context) error {
 	return nil
 }
 
-func (p *wrappedPinner) getPinnedCount() int64 {
+func (p *wrappedPinner) getTotalPinnedCount() int64 {
 	return p.pinnedCount.Load()
 }

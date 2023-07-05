@@ -14,7 +14,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/photon-storage/go-gw3/common/http"
-	rcpinner "github.com/photon-storage/go-rc-pinner"
 )
 
 type extendedHandlers struct {
@@ -74,8 +73,9 @@ func (h *extendedHandlers) pinnedCount() gohttp.HandlerFunc {
 			return
 		}
 
-		pinner, ok := h.nd.Pinning.(*rcpinner.RcPinner)
-		if !ok {
+		pinner := getRcPinner(h.nd.Pinning)
+		if pinner == nil {
+			fmt.Printf("** kmax?\n")
 			writeJSON(
 				w,
 				gohttp.StatusNotImplemented,

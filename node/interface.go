@@ -154,7 +154,7 @@ func InitFalconAfterNodeConstruction(
 
 	log.Info(fmt.Sprintf("Launching falcon %v ...", emoji.Rocket))
 	// Sanity check.
-	if p, ok := nd.Pinning.(*wrappedPinner); !ok {
+	if p := getRcPinner(nd.Pinning); p == nil {
 		return nil, ErrRcPinnerMissing
 	} else {
 		if err := p.initPinnedCount(req.Context); err != nil {
