@@ -30,7 +30,7 @@ func updateNodeMetrics(
 			if p, ok := nd.Pinning.(*wrappedPinner); ok {
 				metrics.GaugeSet(
 					"pinned_count_total",
-					float64(p.getPinnedCount()),
+					float64(p.getTotalPinnedCount()),
 				)
 			}
 		}
