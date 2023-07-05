@@ -25,12 +25,12 @@ import (
 	ir "github.com/ipfs/kubo/routing"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/routing"
-	rcpinner "github.com/photon-storage/go-rc-pinner"
 	"go.uber.org/atomic"
 
 	"github.com/photon-storage/go-common/testing/require"
 	"github.com/photon-storage/go-gw3/common/crypto"
 	"github.com/photon-storage/go-gw3/common/http"
+	rcpinner "github.com/photon-storage/go-rc-pinner"
 )
 
 var rand = util.NewTimeSeededRand()
