@@ -75,7 +75,6 @@ func (h *extendedHandlers) pinnedCount() gohttp.HandlerFunc {
 
 		pinner := getRcPinner(h.nd.Pinning)
 		if pinner == nil {
-			fmt.Printf("** kmax?\n")
 			writeJSON(
 				w,
 				gohttp.StatusNotImplemented,
