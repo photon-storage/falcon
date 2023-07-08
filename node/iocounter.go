@@ -10,6 +10,10 @@ var (
 	ErrSizeCapExceeded = errors.New("body size cap exceeded")
 )
 
+const (
+	allowance = 1024
+)
+
 // ingressCounter is a wrapper for the underlying http.Request.Body and counts
 // number of bytes consumed from it.
 type ingressCounter struct {
@@ -29,7 +33,7 @@ func newIngressCounter(body io.ReadCloser, maxSize int) *ingressCounter {
 func (c *ingressCounter) Read(p []byte) (int, error) {
 	n, err := c.body.Read(p)
 	c.sz += n
-	if c.maxSize > 0 && c.sz > c.maxSize {
+	if c.maxSize > 0 && c.sz > c.maxSize+allowance {
 		return 0, ErrSizeCapExceeded
 	}
 	return n, err
