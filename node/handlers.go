@@ -126,7 +126,7 @@ func (h *extendedHandlers) nameBroadcast() gohttp.HandlerFunc {
 		}
 
 		k := ipns.RecordKey(peerID)
-		v, err := base64.StdEncoding.DecodeString(query.Get(http.ParamIPFSArg))
+		v, err := base64.URLEncoding.DecodeString(query.Get(http.ParamIPFSArg))
 		if err != nil {
 			writeJSON(w, gohttp.StatusBadRequest, &NameBroadcastResult{
 				Message: err.Error(),

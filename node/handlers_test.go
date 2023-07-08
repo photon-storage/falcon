@@ -167,7 +167,7 @@ func TestNameBroadcast(t *testing.T) {
 	require.NoError(t, ipns.EmbedPublicKey(pk, entry))
 	data, err := proto.Marshal(entry)
 	require.NoError(t, err)
-	v := base64.StdEncoding.EncodeToString(data)
+	v := base64.URLEncoding.EncodeToString(data)
 
 	h := newExtendedHandlers(
 		&core.IpfsNode{
@@ -194,7 +194,6 @@ func TestNameBroadcast(t *testing.T) {
 	var res NameBroadcastResult
 	decodeResp(t, w, &res)
 	require.Equal(t, "ok", res.Message)
-
 }
 
 func decodeResp(t *testing.T, w *httptest.ResponseRecorder, v interface{}) {
