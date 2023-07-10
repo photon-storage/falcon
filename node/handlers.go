@@ -6,9 +6,9 @@ import (
 	"fmt"
 	gohttp "net/http"
 
+	coreiface "github.com/ipfs/boxo/coreiface"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/go-ipns"
-	iface "github.com/ipfs/interface-go-ipfs-core"
 	config "github.com/ipfs/kubo/config"
 	"github.com/ipfs/kubo/core"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -19,13 +19,13 @@ import (
 type extendedHandlers struct {
 	nd   *core.IpfsNode
 	rcfg *config.Config
-	api  iface.CoreAPI
+	api  coreiface.CoreAPI
 }
 
 func newExtendedHandlers(
 	nd *core.IpfsNode,
 	rcfg *config.Config,
-	api iface.CoreAPI,
+	api coreiface.CoreAPI,
 ) *extendedHandlers {
 	return &extendedHandlers{
 		nd:   nd,

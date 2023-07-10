@@ -34,7 +34,6 @@ func initMetrics(ctx context.Context, port int) {
 	metrics.NewCounter("rc_pinner_unpin_call_total")
 	metrics.NewCounter("rc_pinner_unpin_err_total")
 	metrics.NewCounter("rc_pinner_recursive_keys_call_total")
-	metrics.NewCounter("rc_pinner_recursive_keys_err_total")
 	metrics.NewGauge("pinned_count_total")
 	metrics.NewGauge("connected_peers_total")
 

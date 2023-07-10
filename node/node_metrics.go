@@ -27,12 +27,10 @@ func updateNodeMetrics(
 				float64(len(connected)),
 			)
 
-			if p, ok := nd.Pinning.(*wrappedPinner); ok {
-				metrics.GaugeSet(
-					"pinned_count_total",
-					float64(p.getTotalPinnedCount()),
-				)
-			}
+			metrics.GaugeSet(
+				"pinned_count_total",
+				float64(getRcPinner(nd.Pinning).getTotalPinnedCount()),
+			)
 		}
 	}
 }

@@ -10,10 +10,10 @@ import (
 	"strconv"
 	"time"
 
+	coreiface "github.com/ipfs/boxo/coreiface"
+	mdag "github.com/ipfs/boxo/ipld/merkledag"
+	"github.com/ipfs/boxo/ipld/merkledag/traverse"
 	"github.com/ipfs/go-cid"
-	mdag "github.com/ipfs/go-merkledag"
-	"github.com/ipfs/go-merkledag/traverse"
-	iface "github.com/ipfs/interface-go-ipfs-core"
 
 	"github.com/photon-storage/go-common/log"
 	"github.com/photon-storage/go-common/metrics"
@@ -30,10 +30,10 @@ var (
 )
 
 type reportHandler struct {
-	coreapi iface.CoreAPI
+	coreapi coreiface.CoreAPI
 }
 
-func newReportHandler(coreapi iface.CoreAPI) *reportHandler {
+func newReportHandler(coreapi coreiface.CoreAPI) *reportHandler {
 	return &reportHandler{
 		coreapi: coreapi,
 	}
@@ -41,6 +41,10 @@ func newReportHandler(coreapi iface.CoreAPI) *reportHandler {
 
 // This could be chained after auth, which decoded args.
 func (h *reportHandler) wrap(next gohttp.Handler) gohttp.Handler {
+	if Cfg().ExternalServices.Spaceport == "" {
+		return next
+	}
+
 	return gohttp.HandlerFunc(func(w gohttp.ResponseWriter, r *gohttp.Request) {
 		if GetNoReportFromCtx(r.Context()) {
 			next.ServeHTTP(w, r)
@@ -94,7 +98,7 @@ func (h *reportHandler) wrap(next gohttp.Handler) gohttp.Handler {
 
 func reportRequest(
 	ctx context.Context,
-	coreapi iface.CoreAPI,
+	coreapi coreiface.CoreAPI,
 	r *gohttp.Request,
 	ingr int,
 	egr int,
@@ -170,7 +174,7 @@ func reportRequest(
 
 func calculateCidSize(
 	ctx context.Context,
-	coreapi iface.CoreAPI,
+	coreapi coreiface.CoreAPI,
 	k cid.Cid,
 ) (int, error) {
 	nodeGetter := mdag.NewSession(ctx, coreapi.Dag())

@@ -6,22 +6,23 @@ import (
 	"regexp"
 	"strings"
 
-	ipfsgw "github.com/ipfs/go-libipfs/gateway"
+	"github.com/ipfs/boxo/gateway"
+
 	"github.com/photon-storage/go-common/log"
 )
 
 // Copied from boxo/gateway/hostname.go
 type hostnameGateways struct {
-	exact    map[string]*ipfsgw.Specification
-	wildcard map[*regexp.Regexp]*ipfsgw.Specification
+	exact    map[string]*gateway.PublicGateway
+	wildcard map[*regexp.Regexp]*gateway.PublicGateway
 }
 
 // prepareHostnameGateways converts the user given gateways into an internal format
 // split between exact and wildcard-based gateway hostnames.
-func prepareHostnameGateways(gateways map[string]*ipfsgw.Specification) *hostnameGateways {
+func prepareHostnameGateways(gateways map[string]*gateway.PublicGateway) *hostnameGateways {
 	h := &hostnameGateways{
-		exact:    map[string]*ipfsgw.Specification{},
-		wildcard: map[*regexp.Regexp]*ipfsgw.Specification{},
+		exact:    map[string]*gateway.PublicGateway{},
+		wildcard: map[*regexp.Regexp]*gateway.PublicGateway{},
 	}
 
 	for hostname, gw := range gateways {
@@ -49,7 +50,7 @@ func prepareHostnameGateways(gateways map[string]*ipfsgw.Specification) *hostnam
 
 // isKnownHostname checks the given hostname gateways and returns a matching
 // specification with graceful fallback to version without port.
-func (gws *hostnameGateways) isKnownHostname(hostname string) (gw *ipfsgw.Specification, ok bool) {
+func (gws *hostnameGateways) isKnownHostname(hostname string) (gw *gateway.PublicGateway, ok bool) {
 	// Try hostname (host+optional port - value from Host header as-is)
 	if gw, ok := gws.exact[hostname]; ok {
 		return gw, ok
@@ -70,10 +71,10 @@ func (gws *hostnameGateways) isKnownHostname(hostname string) (gw *ipfsgw.Specif
 }
 
 // knownSubdomainDetails parses the Host header and looks for a known gateway matching
-// the subdomain host. If found, returns a Specification and the subdomain components
+// the subdomain host. If found, returns a PublicGateway and the subdomain components
 // extracted from Host header: {rootID}.{ns}.{gwHostname}.
 // Note: hostname is host + optional port
-func (gws *hostnameGateways) knownSubdomainDetails(hostname string) (gw *ipfsgw.Specification, gwHostname, ns, rootID string, ok bool) {
+func (gws *hostnameGateways) knownSubdomainDetails(hostname string) (gw *gateway.PublicGateway, gwHostname, ns, rootID string, ok bool) {
 	labels := strings.Split(hostname, ".")
 	// Look for FQDN of a known gateway hostname.
 	// Example: given "dist.ipfs.tech.ipns.dweb.link":

@@ -29,7 +29,7 @@ esac
 
 echo ${REPO}
 
-PKG_0="github.com/ipfs/go-libipfs"
+PKG_0="github.com/ipfs/boxo"
 PKG_1="github.com/ipfs/kubo"
 
 # Default local photon-proto repo location.

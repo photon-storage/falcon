@@ -89,6 +89,9 @@ import (
 //    For example:
 //       go get go.opentelemetry.io/otel@v1.7.0
 //
+// 10. Make sure corenode.Core = fx.Options() assignments in
+//     InitFalconBeforeNodeConstruction is consistent with Kubo.
+//
 // Example command to run falcon daemon:
 //    go run ./cmd/falcon/. daemon --falcon-config=./cmd/falcon/config/config_dev.yaml
 const (
@@ -136,8 +139,9 @@ func InitFalconBeforeNodeConstruction(
 		fx.Provide(corenode.BlockService),
 		fx.Provide(corenode.Dag),
 		fx.Provide(corenode.FetcherConfig),
-		fx.Provide(corenode.Files),
+		fx.Provide(corenode.PathResolverConfig),
 		fx.Provide(RcPinning),
+		fx.Provide(corenode.Files),
 	)
 
 	return nil
@@ -156,10 +160,6 @@ func InitFalconAfterNodeConstruction(
 	// Sanity check.
 	if p := getRcPinner(nd.Pinning); p == nil {
 		return nil, ErrRcPinnerMissing
-	} else {
-		if err := p.initPinnedCount(req.Context); err != nil {
-			return nil, err
-		}
 	}
 
 	if Cfg().RequireTLSCert() {
