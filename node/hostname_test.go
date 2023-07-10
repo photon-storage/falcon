@@ -3,7 +3,7 @@ package node
 import (
 	"testing"
 
-	ipfsgw "github.com/ipfs/go-libipfs/gateway"
+	"github.com/ipfs/boxo/gateway"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -28,13 +28,28 @@ func TestPortStripping(t *testing.T) {
 }
 
 func TestKnownSubdomainDetails(t *testing.T) {
-	gwLocalhost := &ipfsgw.Specification{Paths: []string{"/ipfs", "/ipns", "/api"}, UseSubdomains: true}
-	gwDweb := &ipfsgw.Specification{Paths: []string{"/ipfs", "/ipns", "/api"}, UseSubdomains: true}
-	gwLong := &ipfsgw.Specification{Paths: []string{"/ipfs", "/ipns", "/api"}, UseSubdomains: true}
-	gwWildcard1 := &ipfsgw.Specification{Paths: []string{"/ipfs", "/ipns", "/api"}, UseSubdomains: true}
-	gwWildcard2 := &ipfsgw.Specification{Paths: []string{"/ipfs", "/ipns", "/api"}, UseSubdomains: true}
+	gwLocalhost := &gateway.PublicGateway{
+		Paths:         []string{"/ipfs", "/ipns", "/api"},
+		UseSubdomains: true,
+	}
+	gwDweb := &gateway.PublicGateway{
+		Paths:         []string{"/ipfs", "/ipns", "/api"},
+		UseSubdomains: true,
+	}
+	gwLong := &gateway.PublicGateway{
+		Paths:         []string{"/ipfs", "/ipns", "/api"},
+		UseSubdomains: true,
+	}
+	gwWildcard1 := &gateway.PublicGateway{
+		Paths:         []string{"/ipfs", "/ipns", "/api"},
+		UseSubdomains: true,
+	}
+	gwWildcard2 := &gateway.PublicGateway{
+		Paths:         []string{"/ipfs", "/ipns", "/api"},
+		UseSubdomains: true,
+	}
 
-	gateways := prepareHostnameGateways(map[string]*ipfsgw.Specification{
+	gateways := prepareHostnameGateways(map[string]*gateway.PublicGateway{
 		"localhost":               gwLocalhost,
 		"dweb.link":               gwDweb,
 		"devgateway.dweb.link":    gwDweb,
@@ -47,7 +62,7 @@ func TestKnownSubdomainDetails(t *testing.T) {
 		// in:
 		hostHeader string
 		// out:
-		gw       *ipfsgw.Specification
+		gw       *gateway.PublicGateway
 		hostname string
 		ns       string
 		rootID   string

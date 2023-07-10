@@ -25,7 +25,6 @@ import (
 	ir "github.com/ipfs/kubo/routing"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/routing"
-	"go.uber.org/atomic"
 
 	"github.com/photon-storage/go-common/testing/require"
 	"github.com/photon-storage/go-gw3/common/crypto"
@@ -51,9 +50,10 @@ func TestPinnedCount(t *testing.T) {
 	bstore := blockstore.NewBlockstore(dstore)
 	bserv := bs.New(bstore, offline.Exchange(bstore))
 	dserv := mdag.NewDAGService(bserv)
+	rcp, err := rcpinner.New(ctx, dstore, dserv)
+	require.NoError(t, err)
 	pinner := &wrappedPinner{
-		pinner:      rcpinner.New(ctx, dstore, dserv),
-		pinnedCount: atomic.NewInt64(0),
+		pinner: rcp,
 	}
 
 	h := newExtendedHandlers(
