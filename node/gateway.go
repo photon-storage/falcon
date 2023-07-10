@@ -9,10 +9,10 @@ import (
 	"strings"
 	"sync"
 
+	coreiface "github.com/ipfs/boxo/coreiface"
+	options "github.com/ipfs/boxo/coreiface/options"
+	"github.com/ipfs/boxo/gateway"
 	cmdshttp "github.com/ipfs/go-ipfs-cmds/http"
-	ipfsgw "github.com/ipfs/go-libipfs/gateway"
-	iface "github.com/ipfs/interface-go-ipfs-core"
-	"github.com/ipfs/interface-go-ipfs-core/options"
 	oldcmds "github.com/ipfs/kubo/commands"
 	config "github.com/ipfs/kubo/config"
 	"github.com/ipfs/kubo/core"
@@ -86,8 +86,8 @@ func initFalconGateway(
 		return nil, err
 	}
 
-	publicGws := publicGatewaySpecs(rcfg)
-	auth, err := newAuthHandler(prepareHostnameGateways(publicGws))
+	gwCfg := publicGatewayConfig(rcfg)
+	auth, err := newAuthHandler(prepareHostnameGateways(gwCfg.PublicGateways))
 	if err != nil {
 		return nil, err
 	}
@@ -102,8 +102,8 @@ func initFalconGateway(
 		// reformated to /ipfs and handled by the next mux registered by
 		// the gatewayOption.
 		apiOption(cctx, rcfg, coreapi, auth, report),
-		hostnameOption(cctx, rcfg, publicGws, auth, report),
-		gatewayOption(cctx, rcfg, coreapi, auth, report),
+		hostnameOption(cctx, rcfg, gwCfg, auth, report),
+		gatewayOption(cctx, coreapi, gwCfg, auth, report),
 		corehttp.VersionOption(),
 	}
 
@@ -132,7 +132,7 @@ func initFalconGateway(
 func apiOption(
 	cctx *oldcmds.Context,
 	rcfg *config.Config,
-	coreapi iface.CoreAPI,
+	coreapi coreiface.CoreAPI,
 	auth *authHandler,
 	report *reportHandler,
 ) corehttp.ServeOption {
@@ -165,7 +165,7 @@ func apiOption(
 func hostnameOption(
 	cctx *oldcmds.Context,
 	rcfg *config.Config,
-	publicGws map[string]*ipfsgw.Specification,
+	gwCfg gateway.Config,
 	auth *authHandler,
 	report *reportHandler,
 ) corehttp.ServeOption {
@@ -174,17 +174,14 @@ func hostnameOption(
 		lis net.Listener,
 		mux *gohttp.ServeMux,
 	) (*gohttp.ServeMux, error) {
-		gwAPI, err := newGatewayAPI(nd)
+		backend, err := newGatewayBackend(nd)
 		if err != nil {
 			return nil, err
 		}
 
 		nextMux := http.NewServeMux()
-		mux.Handle("/", auth.wrap(report.wrap(ipfsgw.WithHostname(
-			nextMux,
-			gwAPI,
-			publicGws,
-			rcfg.Gateway.NoDNSLink),
+		mux.Handle("/", auth.wrap(report.wrap(
+			gateway.NewHostnameHandler(gwCfg, backend, nextMux),
 		)))
 
 		return nextMux, nil
@@ -193,8 +190,8 @@ func hostnameOption(
 
 func gatewayOption(
 	cctx *oldcmds.Context,
-	rcfg *config.Config,
-	coreapi iface.CoreAPI,
+	coreapi coreiface.CoreAPI,
+	gwCfg gateway.Config,
 	auth *authHandler,
 	report *reportHandler,
 ) corehttp.ServeOption {
@@ -203,7 +200,7 @@ func gatewayOption(
 		_ net.Listener,
 		mux *gohttp.ServeMux,
 	) (*gohttp.ServeMux, error) {
-		ipfsHandler, err := buildIpfsHandler(nd, rcfg, coreapi)
+		ipfsHandler, err := buildIpfsHandler(nd, coreapi, gwCfg)
 		if err != nil {
 			return nil, err
 		}
@@ -219,24 +216,15 @@ func gatewayOption(
 // github.com/ipfs/kubo/core/corehttp/gateway.go
 func buildIpfsHandler(
 	nd *core.IpfsNode,
-	rcfg *config.Config,
-	coreapi iface.CoreAPI,
+	coreapi coreiface.CoreAPI,
+	gwCfg gateway.Config,
 ) (gohttp.Handler, error) {
-	headers := make(map[string][]string, len(rcfg.Gateway.HTTPHeaders))
-	for h, v := range rcfg.Gateway.HTTPHeaders {
-		headers[gohttp.CanonicalHeaderKey(h)] = v
-	}
-	ipfsgw.AddAccessControlHeaders(headers)
-	gwCfg := ipfsgw.Config{
-		Headers: headers,
-	}
-
-	gwAPI, err := newGatewayAPI(nd)
+	backend, err := newGatewayBackend(nd)
 	if err != nil {
 		return nil, err
 	}
 
-	readable := ipfsgw.NewHandler(gwCfg, gwAPI)
+	readable := gateway.NewHandler(gwCfg, backend)
 	writable := &writableGatewayHandler{
 		config: &gwCfg,
 		api:    coreapi,
@@ -319,8 +307,8 @@ func patchCORSVars(cfg *cmdshttp.ServerConfig, addr net.Addr) {
 	cfg.SetAllowedOrigins(newOrigins...)
 }
 
-func publicGatewaySpecs(rcfg *config.Config) map[string]*ipfsgw.Specification {
-	publicGws := map[string]*ipfsgw.Specification{
+func publicGatewayConfig(rcfg *config.Config) gateway.Config {
+	publicGws := map[string]*gateway.PublicGateway{
 		"localhost": {
 			Paths:         []string{"/ipfs/", "/ipns/"},
 			NoDNSLink:     rcfg.Gateway.NoDNSLink,
@@ -339,7 +327,7 @@ func publicGatewaySpecs(rcfg *config.Config) map[string]*ipfsgw.Specification {
 			continue
 		}
 
-		publicGws[h] = &ipfsgw.Specification{
+		publicGws[h] = &gateway.PublicGateway{
 			Paths:         gw.Paths,
 			NoDNSLink:     gw.NoDNSLink,
 			UseSubdomains: gw.UseSubdomains,
@@ -349,5 +337,15 @@ func publicGatewaySpecs(rcfg *config.Config) map[string]*ipfsgw.Specification {
 		}
 	}
 
-	return publicGws
+	headers := make(map[string][]string, len(rcfg.Gateway.HTTPHeaders))
+	for h, v := range rcfg.Gateway.HTTPHeaders {
+		headers[gohttp.CanonicalHeaderKey(h)] = v
+	}
+	gateway.AddAccessControlHeaders(headers)
+
+	return gateway.Config{
+		Headers:               headers,
+		DeserializedResponses: true,
+		PublicGateways:        publicGws,
+	}
 }

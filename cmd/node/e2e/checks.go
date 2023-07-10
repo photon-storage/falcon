@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
+	ipfsfiles "github.com/ipfs/boxo/files"
+	"github.com/ipfs/boxo/ipld/merkledag"
+	"github.com/ipfs/boxo/mfs"
 	format "github.com/ipfs/go-ipld-format"
-	ipfsfiles "github.com/ipfs/go-libipfs/files"
-	"github.com/ipfs/go-merkledag"
-	"github.com/ipfs/go-mfs"
 	dagcmd "github.com/ipfs/kubo/core/commands/dag"
 	"github.com/ipfs/kubo/core/commands/name"
 	"github.com/ipfs/kubo/core/commands/pin"
@@ -295,6 +295,7 @@ var checks = []*check{
 	},
 	// "GET /ipns/<libp2p_pk>" resolves to IPNS record
 	&check{
+		skip: false,
 		desc: "IPNS: GET by Libp2pKey",
 		run: func(ctx context.Context, cfg config) error {
 			logStep("Post data")
@@ -622,6 +623,8 @@ var checks = []*check{
 					return err
 				}
 
+				fmt.Printf("*** kmax: - > %+v\n", obj)
+
 				code, header, data, err = gatewayPost(
 					ctx,
 					cfg,
@@ -633,7 +636,7 @@ var checks = []*check{
 					return err
 				}
 
-				stat := dagcmd.DagStat{}
+				stat := dagcmd.DagStatSummary{}
 				if err := json.Unmarshal(data, &stat); err != nil {
 					return err
 				}
@@ -641,7 +644,7 @@ var checks = []*check{
 				name := fmt.Sprintf("dag_file%v.txt", idx)
 				root.AddRawLink(name, &format.Link{
 					Name: name,
-					Size: stat.Size,
+					Size: stat.DagStatsArray[0].Size,
 					Cid:  obj.Cid,
 				})
 				idx++

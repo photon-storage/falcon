@@ -7,15 +7,15 @@ import (
 	"os"
 	gopath "path"
 
+	coreiface "github.com/ipfs/boxo/coreiface"
+	"github.com/ipfs/boxo/files"
+	ipfsgw "github.com/ipfs/boxo/gateway"
+	dag "github.com/ipfs/boxo/ipld/merkledag"
+	"github.com/ipfs/boxo/mfs"
+	"github.com/ipfs/boxo/path"
+	"github.com/ipfs/boxo/path/resolver"
 	cid "github.com/ipfs/go-cid"
 	ipld "github.com/ipfs/go-ipld-format"
-	"github.com/ipfs/go-libipfs/files"
-	ipfsgw "github.com/ipfs/go-libipfs/gateway"
-	dag "github.com/ipfs/go-merkledag"
-	"github.com/ipfs/go-mfs"
-	path "github.com/ipfs/go-path"
-	"github.com/ipfs/go-path/resolver"
-	iface "github.com/ipfs/interface-go-ipfs-core"
 	routing "github.com/libp2p/go-libp2p/core/routing"
 
 	"github.com/photon-storage/go-common/log"
@@ -30,7 +30,7 @@ const (
 // with code format and log change.
 // ***********************************************************************//
 type writableGatewayHandler struct {
-	api    iface.CoreAPI
+	api    coreiface.CoreAPI
 	config *ipfsgw.Config
 }
 

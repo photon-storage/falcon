@@ -13,19 +13,18 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
-	bs "github.com/ipfs/go-blockservice"
+	bs "github.com/ipfs/boxo/blockservice"
+	"github.com/ipfs/boxo/blockstore"
+	"github.com/ipfs/boxo/exchange/offline"
+	mdag "github.com/ipfs/boxo/ipld/merkledag"
+	util "github.com/ipfs/boxo/util"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	offline "github.com/ipfs/go-ipfs-exchange-offline"
-	util "github.com/ipfs/go-ipfs-util"
 	"github.com/ipfs/go-ipns"
-	mdag "github.com/ipfs/go-merkledag"
 	"github.com/ipfs/kubo/core"
 	ir "github.com/ipfs/kubo/routing"
 	"github.com/libp2p/go-libp2p/core/peer"
 	"github.com/libp2p/go-libp2p/core/routing"
-	"go.uber.org/atomic"
 
 	"github.com/photon-storage/go-common/testing/require"
 	"github.com/photon-storage/go-gw3/common/crypto"
@@ -51,9 +50,10 @@ func TestPinnedCount(t *testing.T) {
 	bstore := blockstore.NewBlockstore(dstore)
 	bserv := bs.New(bstore, offline.Exchange(bstore))
 	dserv := mdag.NewDAGService(bserv)
+	rcp, err := rcpinner.New(ctx, dstore, dserv)
+	require.NoError(t, err)
 	pinner := &wrappedPinner{
-		pinner:      rcpinner.New(ctx, dstore, dserv),
-		pinnedCount: atomic.NewInt64(0),
+		pinner: rcp,
 	}
 
 	h := newExtendedHandlers(

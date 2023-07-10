@@ -3,15 +3,15 @@ package node
 import (
 	"context"
 
+	"github.com/ipfs/boxo/blockstore"
+	"github.com/ipfs/boxo/filestore"
+	"github.com/ipfs/boxo/ipld/merkledag"
+	pin "github.com/ipfs/boxo/pinning/pinner"
 	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-filestore"
-	blockstore "github.com/ipfs/go-ipfs-blockstore"
-	pin "github.com/ipfs/go-ipfs-pinner"
 	ipld "github.com/ipfs/go-ipld-format"
-	"github.com/ipfs/go-merkledag"
 	"github.com/ipfs/kubo/repo"
-	"go.uber.org/atomic"
 
+	"github.com/photon-storage/go-common/log"
 	"github.com/photon-storage/go-common/metrics"
 	rcpinner "github.com/photon-storage/go-rc-pinner"
 )
@@ -23,16 +23,21 @@ func RcPinning(
 	repo repo.Repo,
 ) pin.Pinner {
 	rootDstore := repo.Datastore()
+	pinner, err := rcpinner.New(
+		context.TODO(),
+		rootDstore,
+		&syncDagService{
+			DAGService: dserv,
+			dstore:     rootDstore,
+		},
+	)
+	if err != nil {
+		log.Error("Error creating RC pinner", "error", err)
+		panic(err)
+	}
+
 	return &wrappedPinner{
-		pinner: rcpinner.New(
-			context.TODO(),
-			rootDstore,
-			&syncDagService{
-				DAGService: dserv,
-				dstore:     rootDstore,
-			},
-		),
-		pinnedCount: atomic.NewInt64(0),
+		pinner: pinner,
 	}
 }
 
@@ -68,8 +73,7 @@ func (s *syncDagService) Session(ctx context.Context) ipld.NodeGetter {
 }
 
 type wrappedPinner struct {
-	pinner      *rcpinner.RcPinner
-	pinnedCount *atomic.Int64
+	pinner *rcpinner.RcPinner
 }
 
 func (p *wrappedPinner) IsPinned(
@@ -97,7 +101,6 @@ func (p *wrappedPinner) Pin(
 		metrics.CounterInc("rc_pinner_pin_err_total")
 		return err
 	}
-	p.pinnedCount.Inc()
 	return nil
 }
 
@@ -111,7 +114,6 @@ func (p *wrappedPinner) Unpin(
 		metrics.CounterInc("rc_pinner_unpin_err_total")
 		return err
 	}
-	p.pinnedCount.Dec()
 	return nil
 }
 
@@ -142,25 +144,23 @@ func (p *wrappedPinner) Flush(ctx context.Context) error {
 	return p.pinner.Flush(ctx)
 }
 
-func (p *wrappedPinner) DirectKeys(ctx context.Context) ([]cid.Cid, error) {
-	// RcPinner does not implement this.
-	return nil, nil
+func (p *wrappedPinner) DirectKeys(
+	ctx context.Context,
+) <-chan pin.StreamedCid {
+	return p.pinner.DirectKeys(ctx)
 }
 
-func (p *wrappedPinner) RecursiveKeys(ctx context.Context) ([]cid.Cid, error) {
+func (p *wrappedPinner) RecursiveKeys(
+	ctx context.Context,
+) <-chan pin.StreamedCid {
 	metrics.CounterInc("rc_pinner_recursive_keys_call_total")
-	cids, err := p.pinner.RecursiveKeys(ctx)
-	if err != nil {
-		metrics.CounterInc("rc_pinner_recursive_keys_err_total")
-		return nil, err
-	}
-
-	return cids, nil
+	return p.pinner.RecursiveKeys(ctx)
 }
 
-func (p *wrappedPinner) InternalPins(ctx context.Context) ([]cid.Cid, error) {
-	// RcPinner does not implement this.
-	return nil, nil
+func (p *wrappedPinner) InternalPins(
+	ctx context.Context,
+) <-chan pin.StreamedCid {
+	return p.pinner.InternalPins(ctx)
 }
 
 func (p *wrappedPinner) PinnedCount(
@@ -170,16 +170,6 @@ func (p *wrappedPinner) PinnedCount(
 	return p.pinner.PinnedCount(ctx, c)
 }
 
-func (p *wrappedPinner) initPinnedCount(ctx context.Context) error {
-	cids, err := p.pinner.RecursiveKeys(ctx)
-	if err != nil {
-		return err
-	}
-
-	p.pinnedCount.Store(int64(len(cids)))
-	return nil
-}
-
 func (p *wrappedPinner) getTotalPinnedCount() int64 {
-	return p.pinnedCount.Load()
+	return int64(p.pinner.TotalPinnedCount())
 }
