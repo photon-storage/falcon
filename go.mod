@@ -24,7 +24,7 @@ require (
 	github.com/multiformats/go-multiaddr v0.9.0
 	github.com/multiformats/go-multiaddr-dns v0.3.1
 	github.com/photon-storage/go-common v0.0.0-20230504104528-a237492a0c5b
-	github.com/photon-storage/go-gw3 v0.0.0-20230708085145-5b8c0e7a5e84
+	github.com/photon-storage/go-gw3 v0.0.0-20230711025124-cfe41ad7a00b
 	github.com/photon-storage/go-rc-pinner v0.0.0-20230710072307-7ae3c3a4a3ba
 	github.com/prometheus/client_golang v1.14.0
 	github.com/stretchr/testify v1.8.4
