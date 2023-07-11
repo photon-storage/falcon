@@ -7,8 +7,8 @@ import (
 	gohttp "net/http"
 
 	coreiface "github.com/ipfs/boxo/coreiface"
+	"github.com/ipfs/boxo/ipns"
 	"github.com/ipfs/go-cid"
-	"github.com/ipfs/go-ipns"
 	config "github.com/ipfs/kubo/config"
 	"github.com/ipfs/kubo/core"
 	"github.com/libp2p/go-libp2p/core/peer"

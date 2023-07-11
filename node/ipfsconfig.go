@@ -1,8 +1,8 @@
 package node
 
 import (
-	"bytes"
 	"fmt"
+	"reflect"
 	"time"
 
 	"github.com/ipfs/kubo/config"
@@ -18,104 +18,153 @@ func overrideIPFSConfig(repo repo.Repo) error {
 		return err
 	}
 
-	origJson, err := config.Marshal(rcfg)
-	if err != nil {
-		return err
-	}
-
 	falconCfg := Cfg()
+	modified := false
+
 	// Resource Manager
 	swarmRcMgrChanged := false
 	maxMem := falconCfg.IPFSConfig.MaxMemMBytes
 	if maxMem > 0 {
-		rcfg.Swarm.ResourceMgr.MaxMemory =
-			config.NewOptionalString(fmt.Sprintf("%d mib", maxMem))
+		setOptString(
+			&rcfg.Swarm.ResourceMgr.MaxMemory,
+			fmt.Sprintf("%d mib", maxMem),
+			&modified,
+		)
 		swarmRcMgrChanged = true
 	}
 
 	maxFd := falconCfg.IPFSConfig.MaxFileDescriptors
 	if maxFd > 0 {
-		rcfg.Swarm.ResourceMgr.MaxFileDescriptors =
-			config.NewOptionalInteger(int64(maxFd))
+		setOptInt(
+			&rcfg.Swarm.ResourceMgr.MaxFileDescriptors,
+			int64(maxFd),
+			&modified,
+		)
 		swarmRcMgrChanged = true
 	}
 
 	if swarmRcMgrChanged {
-		rcfg.Swarm.ResourceMgr.Enabled = config.True
+		setFlag(
+			&rcfg.Swarm.ResourceMgr.Enabled,
+			config.True,
+			&modified,
+		)
 	}
 
 	// Connection Manager
 	swarmConnMgrChanged := false
 	cmLow := falconCfg.IPFSConfig.ConnMgrLowWater
 	if cmLow > 0 {
-		rcfg.Swarm.ConnMgr.LowWater = config.NewOptionalInteger(int64(cmLow))
+		setOptInt(
+			&rcfg.Swarm.ConnMgr.LowWater,
+			int64(cmLow),
+			&modified,
+		)
 		swarmConnMgrChanged = true
 	}
 	cmHigh := falconCfg.IPFSConfig.ConnMgrHighWater
 	if cmHigh > 0 {
-		rcfg.Swarm.ConnMgr.HighWater = config.NewOptionalInteger(int64(cmHigh))
+		setOptInt(
+			&rcfg.Swarm.ConnMgr.HighWater,
+			int64(cmHigh),
+			&modified,
+		)
 		swarmConnMgrChanged = true
 	}
 	cmGracePeriod := falconCfg.IPFSConfig.ConnMgrGracePeriod
 	if cmGracePeriod > 0 {
-		rcfg.Swarm.ConnMgr.GracePeriod =
-			config.NewOptionalDuration(cmGracePeriod)
+		setOptDuration(
+			&rcfg.Swarm.ConnMgr.GracePeriod,
+			cmGracePeriod,
+			&modified,
+		)
 		swarmConnMgrChanged = true
 	}
 	if swarmConnMgrChanged {
-		rcfg.Swarm.ConnMgr.Type =
-			config.NewOptionalString(config.DefaultConnMgrType)
+		setOptString(
+			&rcfg.Swarm.ConnMgr.Type,
+			config.DefaultConnMgrType,
+			&modified,
+		)
 	}
 
 	// Relay Client
+	relayCli := config.True
 	if falconCfg.IPFSConfig.DisableRelayClient {
-		rcfg.Swarm.RelayClient.Enabled = config.False
-	} else {
-		rcfg.Swarm.RelayClient.Enabled = config.True
+		relayCli = config.False
 	}
+	setFlag(
+		&rcfg.Swarm.RelayClient.Enabled,
+		relayCli,
+		&modified,
+	)
 
+	var peers []peer.AddrInfo
 	for _, idStr := range falconCfg.IPFSConfig.Peers {
 		id, err := peer.Decode(idStr)
 		if err != nil {
 			return err
 		}
-		rcfg.Peering.Peers = append(rcfg.Peering.Peers, peer.AddrInfo{
+		peers = append(peers, peer.AddrInfo{
 			ID: id,
 		})
 	}
+	setPeers(
+		&rcfg.Peering.Peers,
+		peers,
+		&modified,
+	)
 
 	// Enforce Gateway CORs
-	rcfg.Gateway.HTTPHeaders["Access-Control-Allow-Origin"] = []string{"*"}
-	rcfg.Gateway.HTTPHeaders["Access-Control-Allow-Methods"] = []string{
-		"GET",
-		"POST",
-		"DELETE",
-		"PUT",
-		"OPTIONS",
-	}
-	rcfg.Gateway.HTTPHeaders["Access-Control-Allow-Headers"] = []string{
-		"Accept",
-		"Content-Type",
-		"Content-Length",
-		"Accept-Encoding",
-		"X-CSRF-Token",
-		"Authorization",
-	}
-	rcfg.Gateway.HTTPHeaders["Access-Control-Expose-Headers"] = []string{
-		"IPFS-Hash",
-	}
+	setHeaders(
+		rcfg.Gateway.HTTPHeaders,
+		"Access-Control-Allow-Origin",
+		[]string{"*"},
+		&modified,
+	)
+	setHeaders(
+		rcfg.Gateway.HTTPHeaders,
+		"Access-Control-Allow-Methods",
+		[]string{
+			"GET",
+			"POST",
+			"DELETE",
+			"PUT",
+			"OPTIONS",
+		},
+		&modified,
+	)
+	setHeaders(
+		rcfg.Gateway.HTTPHeaders,
+		"Access-Control-Allow-Headers",
+		[]string{
+			"Accept",
+			"Content-Type",
+			"Content-Length",
+			"Accept-Encoding",
+			"X-CSRF-Token",
+			"Authorization",
+		},
+		&modified,
+	)
+	setHeaders(
+		rcfg.Gateway.HTTPHeaders,
+		"Access-Control-Expose-Headers",
+		[]string{
+			"IPFS-Hash",
+		},
+		&modified,
+	)
 
 	// Force IPNS pubsub
-	rcfg.Ipns.UsePubsub = config.True
-
-	// Check if config has been changed.
-	updatedJson, err := config.Marshal(rcfg)
-	if err != nil {
-		return err
-	}
+	setFlag(
+		&rcfg.Ipns.UsePubsub,
+		config.True,
+		&modified,
+	)
 
 	// No change.
-	if bytes.Compare(origJson, updatedJson) == 0 {
+	if !modified {
 		return nil
 	}
 
@@ -137,4 +186,85 @@ func overrideIPFSConfig(repo repo.Repo) error {
 	//rcfg.Reprovider.Interval = config.NewOptionalDuration(0)
 
 	return repo.SetConfig(rcfg)
+}
+
+func setOptString(
+	ptr **config.OptionalString,
+	val string,
+	modified *bool,
+) {
+	if *ptr == nil || (*ptr).String() != val {
+		*ptr = config.NewOptionalString(val)
+		*modified = true
+	}
+}
+
+func setOptInt(
+	ptr **config.OptionalInteger,
+	val int64,
+	modified *bool,
+) {
+	if *ptr == nil || (*ptr).String() != fmt.Sprintf("%d", val) {
+		*ptr = config.NewOptionalInteger(val)
+		*modified = true
+	}
+}
+
+func setOptDuration(
+	ptr **config.OptionalDuration,
+	val time.Duration,
+	modified *bool,
+) {
+	if *ptr == nil || (*ptr).String() != val.String() {
+		*ptr = config.NewOptionalDuration(val)
+		*modified = true
+	}
+}
+
+func setFlag(
+	ptr *config.Flag,
+	val config.Flag,
+	modified *bool,
+) {
+	if *ptr != val {
+		*ptr = val
+		*modified = true
+	}
+}
+
+func setPeers(
+	ptr *[]peer.AddrInfo,
+	val []peer.AddrInfo,
+	modified *bool,
+) {
+	matched := true
+	if len(*ptr) == len(val) {
+		for idx, p := range *ptr {
+			if p.String() != val[idx].String() {
+				matched = false
+				break
+			}
+		}
+	} else {
+		matched = false
+	}
+	if matched {
+		return
+	}
+
+	*ptr = val
+	*modified = true
+}
+
+func setHeaders(
+	m map[string][]string,
+	k string,
+	val []string,
+	modified *bool,
+) {
+	if reflect.DeepEqual(m[k], val) {
+		return
+	}
+	m[k] = val
+	*modified = true
 }

@@ -14,7 +14,6 @@ require (
 	github.com/ipfs/go-datastore v0.6.0
 	github.com/ipfs/go-ipfs-cmds v0.9.0
 	github.com/ipfs/go-ipld-format v0.5.0
-	github.com/ipfs/go-ipns v0.3.0
 	github.com/ipfs/go-log v1.0.5
 	github.com/ipfs/go-metrics-prometheus v0.0.2
 	github.com/ipfs/kubo v0.21.0
@@ -25,7 +24,6 @@ require (
 	github.com/multiformats/go-multiaddr-dns v0.3.1
 	github.com/photon-storage/go-common v0.0.0-20230504104528-a237492a0c5b
 	github.com/photon-storage/go-gw3 v0.0.0-20230711025124-cfe41ad7a00b
-	github.com/photon-storage/go-rc-pinner v0.0.0-20230710072307-7ae3c3a4a3ba
 	github.com/prometheus/client_golang v1.14.0
 	github.com/stretchr/testify v1.8.4
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.42.0
@@ -179,6 +177,7 @@ require (
 	github.com/pbnjay/memory v0.0.0-20210728143218-7b4eea64cf58 // indirect
 	github.com/petar/GoLLRB v0.0.0-20210522233825-ae3b015fd3e9 // indirect
 	github.com/photon-storage/fastssz v0.0.0-20220401135229-47aa49fe839f // indirect
+	github.com/photon-storage/go-rc-pinner v0.0.0-20230710072307-7ae3c3a4a3ba // indirect
 	github.com/photon-storage/photon-proto v0.0.0-20220806134259-8b3f28ad0258 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
