@@ -17,10 +17,10 @@ import (
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange/offline"
 	mdag "github.com/ipfs/boxo/ipld/merkledag"
+	"github.com/ipfs/boxo/ipns"
 	util "github.com/ipfs/boxo/util"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
-	"github.com/ipfs/go-ipns"
 	"github.com/ipfs/kubo/core"
 	ir "github.com/ipfs/kubo/routing"
 	"github.com/libp2p/go-libp2p/core/peer"
@@ -162,7 +162,13 @@ func TestNameBroadcast(t *testing.T) {
 	require.NoError(t, err)
 	k := peerID.String()
 	eol := time.Now().Add(5 * time.Minute)
-	entry, err := ipns.Create(sk, []byte("Qme1knMqwt1hKZbc1BmQFmnm9f36nyQGwXxPGVpVJ9rMK5"), 1, eol, 0)
+	entry, err := ipns.Create(
+		sk,
+		[]byte("Qme1knMqwt1hKZbc1BmQFmnm9f36nyQGwXxPGVpVJ9rMK5"),
+		1,
+		eol,
+		0,
+	)
 	require.NoError(t, err)
 	require.NoError(t, ipns.EmbedPublicKey(pk, entry))
 	data, err := proto.Marshal(entry)

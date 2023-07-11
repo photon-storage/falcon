@@ -120,12 +120,8 @@ func logResp(code int, header http.Header, data []byte, err error) error {
 				}
 			}
 		}
-		if true {
-			if len(data) == 0 {
-				fmt.Printf("Response Body: <empty>\n")
-			} else {
-				fmt.Printf("Response Body: %s\n", data)
-			}
+		if len(data) != 0 {
+			fmt.Printf("Response Body: %s\n", data)
 		}
 	}
 

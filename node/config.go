@@ -163,6 +163,10 @@ func (c *Config) RequireTLSCert() bool {
 	return false
 }
 
+func (c *Config) EnableNodeRegistration() bool {
+	return c.ExternalServices.Starbase != ""
+}
+
 func Cfg() *Config {
 	if _falconCfg == nil {
 		panic("Falcon config is not initialized")

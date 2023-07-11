@@ -300,15 +300,16 @@ var checks = []*check{
 		run: func(ctx context.Context, cfg config) error {
 			logStep("Post data")
 
+			content := fmt.Sprintf(
+				"Photon Gateway IPNS Get by Libp2pKey Test - %v",
+				time.Now().Format(time.RFC822Z),
+			)
 			code, header, data, err := gatewayPost(
 				ctx,
 				cfg,
 				"ipfs/",
 				nil,
-				strings.NewReader(fmt.Sprintf(
-					"Photon Gateway IPNS Get by Libp2pKey Test - %v",
-					time.Now().Format(time.RFC822Z),
-				)),
+				strings.NewReader(content),
 			)
 			if err := logResp(code, header, data, err); err != nil {
 				return err
@@ -332,7 +333,6 @@ var checks = []*check{
 			if err := logResp(code, header, data, err); err != nil {
 				return err
 			}
-
 			res := name.IpnsEntry{}
 			if err := json.Unmarshal(data, &res); err != nil {
 				return err
@@ -348,6 +348,20 @@ var checks = []*check{
 				fmt.Sprintf("ipns/%s", res.Name),
 				header,
 			)
+			if err := logResp(code, header, nil, err); err != nil {
+				return err
+			}
+
+			logStep("Fetch IPNS content")
+			code, header, data, err = gatewayGet(
+				ctx,
+				cfg,
+				fmt.Sprintf("ipns/%s", res.Name),
+				nil,
+			)
+			if string(data) != content {
+				return fmt.Errorf("unexpected IPNS content\n")
+			}
 			return logResp(code, header, data, err)
 		},
 	},
@@ -701,7 +715,7 @@ var checks = []*check{
 				header,
 				nil,
 			)
-			if err := logResp(code, header, data, err); err != nil {
+			if err := logResp(code, header, nil, err); err != nil {
 				return err
 			}
 
