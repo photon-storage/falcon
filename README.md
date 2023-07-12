@@ -17,7 +17,7 @@ brew install dnsmasq
 sudo brew services start dnsmasq
 ```
 
-Add following line to /usr/local/etc/dnsmasq.conf and restart `dnsmasq`.
+Add the following line to /usr/local/etc/dnsmasq.conf and restart `dnsmasq`.
 ```
 address=/localhost/127.0.0.1
 ```
