@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
+	gohttp "net/http"
 	"strings"
 	"time"
 
@@ -17,6 +17,7 @@ import (
 	"github.com/ipfs/kubo/core/commands/pin"
 
 	"github.com/photon-storage/falcon/node/consts"
+	"github.com/photon-storage/go-gw3/common/http"
 )
 
 var checks = []*check{
@@ -25,8 +26,9 @@ var checks = []*check{
 	&check{
 		desc: "IPFS: GET root object by CID",
 		run: func(ctx context.Context, cfg config) error {
+			logStep("Run path queries")
 			k := "QmSnuWmxptJZdLJpKRarxBMS2Ju2oANVrgbr2xWbie9b2D"
-			for _, t := range []consts.AcceptMediaType{
+			acceptTypes := []consts.AcceptMediaType{
 				// consts.AcceptJson,
 				// consts.AcceptCbor,
 				// consts.AcceptXTar, --hanging
@@ -35,16 +37,40 @@ var checks = []*check{
 				consts.AcceptVndIpldDagJson,
 				consts.AcceptVndIpldDagCbor,
 				// consts.AcceptVndIpfsIpnsRecord,
-			} {
+			}
+			for _, t := range acceptTypes {
 				logStep("Fetch Accept Type: %v", t)
 
-				header := http.Header{}
+				header := gohttp.Header{}
 				header.Set("Accept", string(t))
-
+				header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 				code, header, data, err := gatewayGet(
 					ctx,
 					cfg,
 					fmt.Sprintf("ipfs/%s", k),
+					header,
+				)
+				if err := logResp(code, header, data, err); err != nil {
+					return err
+				}
+			}
+
+			logStep("Run subdomain queries")
+			b36cid, err := toB36(k)
+			if err != nil {
+				return err
+			}
+
+			cfg.host = fmt.Sprintf("%s.ipfs.%s", b36cid, cfg.host)
+			for _, t := range acceptTypes {
+				logStep("Fetch Accept Type: %v", t)
+
+				header := gohttp.Header{}
+				header.Set("Accept", string(t))
+				code, header, data, err := gatewayGet(
+					ctx,
+					cfg,
+					"",
 					header,
 				)
 				if err := logResp(code, header, data, err); err != nil {
@@ -83,8 +109,9 @@ var checks = []*check{
 				return fmt.Errorf("Redirect URL missing")
 			}
 
-			header = http.Header{}
+			header = gohttp.Header{}
 			header.Set("Accept", string(consts.AcceptVndIpldRaw))
+			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err = gatewayGet(
 				ctx,
 				cfg,
@@ -108,11 +135,13 @@ var checks = []*check{
 			// CID of empty directory.
 			root := "QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"
 			path := "falcon_test0.txt"
+			header := gohttp.Header{}
+			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err := gatewayPut(
 				ctx,
 				cfg,
 				fmt.Sprintf("ipfs/%s/%s", root, path),
-				nil,
+				header,
 				strings.NewReader(fmt.Sprintf(
 					"Photon Gateway PUT Test - File0 - %v",
 					time.Now().Format(time.RFC822Z),
@@ -129,11 +158,13 @@ var checks = []*check{
 				return fmt.Errorf("Root CID missing")
 			}
 			path = "falcon_test1.txt"
+			header = gohttp.Header{}
+			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err = gatewayPut(
 				ctx,
 				cfg,
 				fmt.Sprintf("ipfs/%s/%s", root, path),
-				nil,
+				header,
 				strings.NewReader(fmt.Sprintf(
 					"Photon Gateway PUT Test - File1 - %v",
 					time.Now().Format(time.RFC822Z),
@@ -151,11 +182,13 @@ var checks = []*check{
 			}
 
 			path = "a_dir/falcon_test2.txt"
+			header = gohttp.Header{}
+			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err = gatewayPut(
 				ctx,
 				cfg,
 				fmt.Sprintf("ipfs/%s/%s", root, path),
-				nil,
+				header,
 				strings.NewReader(fmt.Sprintf(
 					"Photon Gateway PUT Test - File2 - %v",
 					time.Now().Format(time.RFC822Z),
@@ -172,11 +205,13 @@ var checks = []*check{
 				return fmt.Errorf("Root CID missing")
 			}
 			path = "a_dir/falcon_test3.txt"
+			header = gohttp.Header{}
+			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err = gatewayPut(
 				ctx,
 				cfg,
 				fmt.Sprintf("ipfs/%s/%s", root, path),
-				nil,
+				header,
 				strings.NewReader(fmt.Sprintf(
 					"Photon Gateway PUT Test - File3 - %v",
 					time.Now().Format(time.RFC822Z),
@@ -193,8 +228,9 @@ var checks = []*check{
 
 			logStep("Get a_dir")
 
-			header = http.Header{}
+			header = gohttp.Header{}
 			header.Set("Accept", string(consts.AcceptVndIpldRaw))
+			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err = gatewayGet(
 				ctx,
 				cfg,
@@ -207,6 +243,9 @@ var checks = []*check{
 
 			logStep("Get file 3")
 
+			header = gohttp.Header{}
+			header.Set("Accept", string(consts.AcceptVndIpldRaw))
+			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err = gatewayGet(
 				ctx,
 				cfg,
@@ -219,11 +258,13 @@ var checks = []*check{
 
 			logStep("Delete file 3")
 
+			header = gohttp.Header{}
+			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err = gatewayDel(
 				ctx,
 				cfg,
 				fmt.Sprintf("ipfs/%s/%s", root, path),
-				nil,
+				header,
 			)
 			if err := logResp(code, header, data, err); err != nil {
 				return err
@@ -273,7 +314,7 @@ var checks = []*check{
 			} {
 				logStep("Fetch Accept Type: %v", t)
 
-				header := http.Header{}
+				header := gohttp.Header{}
 				header.Set("Accept", string(t))
 				code, header, data, err := gatewayGet(
 					ctx,
@@ -327,7 +368,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				fmt.Sprintf("api/v0/name/publish?arg=%s", k),
-				header,
+				nil,
 				nil,
 			)
 			if err := logResp(code, header, data, err); err != nil {
@@ -340,8 +381,9 @@ var checks = []*check{
 
 			logStep("Fetch IPNS record")
 
-			header = http.Header{}
+			header = gohttp.Header{}
 			header.Set("Accept", string(consts.AcceptVndIpfsIpnsRecord))
+			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err = gatewayGet(
 				ctx,
 				cfg,
@@ -353,11 +395,13 @@ var checks = []*check{
 			}
 
 			logStep("Fetch IPNS content")
+			header = gohttp.Header{}
+			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err = gatewayGet(
 				ctx,
 				cfg,
 				fmt.Sprintf("ipns/%s", res.Name),
-				nil,
+				header,
 			)
 			if string(data) != content {
 				return fmt.Errorf("unexpected IPNS content\n")
@@ -604,7 +648,7 @@ var checks = []*check{
 				true,
 			)
 
-			header := http.Header{}
+			header := gohttp.Header{}
 			header.Set("Content-Type", "multipart/form-data; boundary="+r.Boundary())
 			header.Set("Content-Disposition", "form-data; name=\"files\"")
 
@@ -636,8 +680,6 @@ var checks = []*check{
 				); err != nil {
 					return err
 				}
-
-				fmt.Printf("*** kmax: - > %+v\n", obj)
 
 				code, header, data, err = gatewayPost(
 					ctx,
@@ -674,7 +716,7 @@ var checks = []*check{
 				true,
 			)
 
-			header = http.Header{}
+			header = gohttp.Header{}
 			header.Set("Content-Type", "multipart/form-data; boundary="+r.Boundary())
 			header.Set("Content-Disposition", "form-data; name=\"files\"")
 
@@ -727,7 +769,7 @@ var checks = []*check{
 				}),
 				true,
 			)
-			header = http.Header{}
+			header = gohttp.Header{}
 			header.Set("Content-Type", "multipart/form-data; boundary="+r.Boundary())
 			header.Set("Content-Disposition", "form-data; name=\"files\"")
 			code, header, data, err = gatewayPost(
@@ -759,7 +801,7 @@ var checks = []*check{
 				}),
 				true,
 			)
-			header := http.Header{}
+			header := gohttp.Header{}
 			header.Set("Content-Type", "multipart/form-data; boundary="+r.Boundary())
 			header.Set("Content-Disposition", "form-data; name=\"files\"")
 			code, header, data, err := gatewayPost(
@@ -782,7 +824,7 @@ var checks = []*check{
 				}),
 				true,
 			)
-			header = http.Header{}
+			header = gohttp.Header{}
 			header.Set("Content-Type", "multipart/form-data; boundary="+r.Boundary())
 			header.Set("Content-Disposition", "form-data; name=\"files\"")
 			code, header, data, err = gatewayPost(
@@ -805,7 +847,7 @@ var checks = []*check{
 				}),
 				true,
 			)
-			header = http.Header{}
+			header = gohttp.Header{}
 			header.Set("Content-Type", "multipart/form-data; boundary="+r.Boundary())
 			header.Set("Content-Disposition", "form-data; name=\"files\"")
 			code, header, data, err = gatewayPost(

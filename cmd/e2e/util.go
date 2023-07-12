@@ -9,6 +9,9 @@ import (
 	"sort"
 
 	"github.com/enescakir/emoji"
+	"github.com/ipfs/go-cid"
+	"github.com/multiformats/go-multibase"
+
 	"github.com/photon-storage/go-common/log"
 )
 
@@ -58,13 +61,17 @@ func httpCall(
 	header http.Header,
 	body io.Reader,
 ) (int, http.Header, []byte, error) {
-	if path[0] == '/' {
+	url := fmt.Sprintf("http://%s:%d", cfg.host, cfg.port)
+	for len(path) > 0 && path[0] == '/' {
 		path = path[1:]
+	}
+	if len(path) > 0 {
+		url = url + "/" + path
 	}
 	req, err := http.NewRequestWithContext(
 		ctx,
 		method,
-		fmt.Sprintf("http://%s:%d/%s", cfg.host, cfg.port, path),
+		url,
 		body,
 	)
 	if err != nil {
@@ -137,4 +144,13 @@ func logResp(code int, header http.Header, data []byte, err error) error {
 	}
 
 	return nil
+}
+
+func toB36(k string) (string, error) {
+	c, err := cid.Decode(k)
+	if err != nil {
+		return "", err
+	}
+	c = cid.NewCidV1(c.Type(), c.Hash())
+	return c.StringOfBase(multibase.Base32)
 }
