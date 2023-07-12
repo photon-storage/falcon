@@ -226,7 +226,7 @@ func redirectToStarbase(w gohttp.ResponseWriter, r *gohttp.Request) {
 	)
 	url := *r.URL
 	url.Host = strings.Replace(
-		stripPort(url.Host),
+		stripPort(r.Host),
 		cfg.GW3Hostname,
 		target,
 		1,
