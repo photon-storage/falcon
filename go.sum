@@ -747,6 +747,8 @@ github.com/photon-storage/go-common v0.0.0-20230504104528-a237492a0c5b h1:B5djWA
 github.com/photon-storage/go-common v0.0.0-20230504104528-a237492a0c5b/go.mod h1:esL6le/G7T9W1HjHvMZ+N+WciU/J9qKoF+ZS+GqwCDM=
 github.com/photon-storage/go-gw3 v0.0.0-20230711025124-cfe41ad7a00b h1:41eAzkhg3Wjy/Rq+glmMz7TKfh827mpcGuNgjOpqRlw=
 github.com/photon-storage/go-gw3 v0.0.0-20230711025124-cfe41ad7a00b/go.mod h1:foxw1qeXmqSni8lHQ6FrIrJ0dfsT3PNJN6AisMFEGIo=
+github.com/photon-storage/go-gw3 v0.0.0-20230712023041-658a7585ecd8 h1:keHQWY/2NHsBsrJdHUkHgBzA/m7gG54U5fzv5GaP3MY=
+github.com/photon-storage/go-gw3 v0.0.0-20230712023041-658a7585ecd8/go.mod h1:foxw1qeXmqSni8lHQ6FrIrJ0dfsT3PNJN6AisMFEGIo=
 github.com/photon-storage/go-rc-pinner v0.0.0-20230710072307-7ae3c3a4a3ba h1:ufZ3NFJV6bQTjjbxkaqNcENzXVf0dA2nBahGGFKYsoY=
 github.com/photon-storage/go-rc-pinner v0.0.0-20230710072307-7ae3c3a4a3ba/go.mod h1:0YSSfS0lJDxsCelpEYJOXKuT9ISsFftHavTX5m4h4sE=
 github.com/photon-storage/photon-proto v0.0.0-20220806134259-8b3f28ad0258 h1:jscyag7xBM2jGmcpz/fyfcXjzQZVtLamCpzS6Fj/+yM=
