@@ -13,6 +13,7 @@ import (
 	"github.com/ipfs/boxo/coreiface/path"
 	"github.com/ipfs/boxo/exchange/offline"
 	"github.com/ipfs/boxo/files"
+
 	"github.com/ipfs/boxo/gateway"
 	"github.com/ipfs/boxo/namesys"
 	offlineroute "github.com/ipfs/boxo/routing/offline"

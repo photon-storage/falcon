@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net/http"
+	gohttp "net/http"
 	"strings"
 	"time"
 
@@ -16,6 +16,8 @@ import (
 	"github.com/ipfs/kubo/core/commands/name"
 	"github.com/ipfs/kubo/core/commands/pin"
 
+	"github.com/photon-storage/go-gw3/common/http"
+
 	"github.com/photon-storage/falcon/node/consts"
 )
 
@@ -25,8 +27,9 @@ var checks = []*check{
 	&check{
 		desc: "IPFS: GET root object by CID",
 		run: func(ctx context.Context, cfg config) error {
+			logStep("Run path queries")
 			k := "QmSnuWmxptJZdLJpKRarxBMS2Ju2oANVrgbr2xWbie9b2D"
-			for _, t := range []consts.AcceptMediaType{
+			acceptTypes := []consts.AcceptMediaType{
 				// consts.AcceptJson,
 				// consts.AcceptCbor,
 				// consts.AcceptXTar, --hanging
@@ -35,16 +38,40 @@ var checks = []*check{
 				consts.AcceptVndIpldDagJson,
 				consts.AcceptVndIpldDagCbor,
 				// consts.AcceptVndIpfsIpnsRecord,
-			} {
+			}
+			for _, t := range acceptTypes {
 				logStep("Fetch Accept Type: %v", t)
 
-				header := http.Header{}
+				header := gohttp.Header{}
 				header.Set("Accept", string(t))
-
+				header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 				code, header, data, err := gatewayGet(
 					ctx,
 					cfg,
 					fmt.Sprintf("ipfs/%s", k),
+					header,
+				)
+				if err := logResp(code, header, data, err); err != nil {
+					return err
+				}
+			}
+
+			logStep("Run subdomain queries")
+			b36cid, err := toB36(k)
+			if err != nil {
+				return err
+			}
+
+			cfg.host = fmt.Sprintf("%s.ipfs.%s", b36cid, cfg.host)
+			for _, t := range acceptTypes {
+				logStep("Fetch Accept Type: %v", t)
+
+				header := gohttp.Header{}
+				header.Set("Accept", string(t))
+				code, header, data, err := gatewayGet(
+					ctx,
+					cfg,
+					"",
 					header,
 				)
 				if err := logResp(code, header, data, err); err != nil {
@@ -83,8 +110,9 @@ var checks = []*check{
 				return fmt.Errorf("Redirect URL missing")
 			}
 
-			header = http.Header{}
+			header = gohttp.Header{}
 			header.Set("Accept", string(consts.AcceptVndIpldRaw))
+			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err = gatewayGet(
 				ctx,
 				cfg,
@@ -193,8 +221,9 @@ var checks = []*check{
 
 			logStep("Get a_dir")
 
-			header = http.Header{}
+			header = gohttp.Header{}
 			header.Set("Accept", string(consts.AcceptVndIpldRaw))
+			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err = gatewayGet(
 				ctx,
 				cfg,
@@ -207,6 +236,9 @@ var checks = []*check{
 
 			logStep("Get file 3")
 
+			header = gohttp.Header{}
+			header.Set("Accept", string(consts.AcceptVndIpldRaw))
+			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err = gatewayGet(
 				ctx,
 				cfg,
@@ -273,7 +305,7 @@ var checks = []*check{
 			} {
 				logStep("Fetch Accept Type: %v", t)
 
-				header := http.Header{}
+				header := gohttp.Header{}
 				header.Set("Accept", string(t))
 				code, header, data, err := gatewayGet(
 					ctx,
@@ -327,7 +359,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				fmt.Sprintf("api/v0/name/publish?arg=%s", k),
-				header,
+				nil,
 				nil,
 			)
 			if err := logResp(code, header, data, err); err != nil {
@@ -340,8 +372,9 @@ var checks = []*check{
 
 			logStep("Fetch IPNS record")
 
-			header = http.Header{}
+			header = gohttp.Header{}
 			header.Set("Accept", string(consts.AcceptVndIpfsIpnsRecord))
+			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err = gatewayGet(
 				ctx,
 				cfg,
@@ -353,11 +386,13 @@ var checks = []*check{
 			}
 
 			logStep("Fetch IPNS content")
+			header = gohttp.Header{}
+			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err = gatewayGet(
 				ctx,
 				cfg,
 				fmt.Sprintf("ipns/%s", res.Name),
-				nil,
+				header,
 			)
 			if string(data) != content {
 				return fmt.Errorf("unexpected IPNS content\n")
@@ -604,7 +639,7 @@ var checks = []*check{
 				true,
 			)
 
-			header := http.Header{}
+			header := gohttp.Header{}
 			header.Set("Content-Type", "multipart/form-data; boundary="+r.Boundary())
 			header.Set("Content-Disposition", "form-data; name=\"files\"")
 
@@ -637,13 +672,11 @@ var checks = []*check{
 					return err
 				}
 
-				fmt.Printf("*** kmax: - > %+v\n", obj)
-
 				code, header, data, err = gatewayPost(
 					ctx,
 					cfg,
 					fmt.Sprintf("api/v0/dag/stat?arg=%v&progress=false", obj.Cid.String()),
-					header,
+					nil,
 					nil,
 				)
 				if err := logResp(code, header, data, err); err != nil {
@@ -674,7 +707,7 @@ var checks = []*check{
 				true,
 			)
 
-			header = http.Header{}
+			header = gohttp.Header{}
 			header.Set("Content-Type", "multipart/form-data; boundary="+r.Boundary())
 			header.Set("Content-Disposition", "form-data; name=\"files\"")
 
@@ -699,7 +732,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				fmt.Sprintf("api/v0/dag/get?arg=%v", obj.Cid.String()),
-				header,
+				nil,
 				nil,
 			)
 			if err := logResp(code, header, data, err); err != nil {
@@ -712,7 +745,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				fmt.Sprintf("api/v0/dag/export?arg=%v&progress=false", obj.Cid.String()),
-				header,
+				nil,
 				nil,
 			)
 			if err := logResp(code, header, nil, err); err != nil {
@@ -727,7 +760,7 @@ var checks = []*check{
 				}),
 				true,
 			)
-			header = http.Header{}
+			header = gohttp.Header{}
 			header.Set("Content-Type", "multipart/form-data; boundary="+r.Boundary())
 			header.Set("Content-Disposition", "form-data; name=\"files\"")
 			code, header, data, err = gatewayPost(
@@ -759,7 +792,7 @@ var checks = []*check{
 				}),
 				true,
 			)
-			header := http.Header{}
+			header := gohttp.Header{}
 			header.Set("Content-Type", "multipart/form-data; boundary="+r.Boundary())
 			header.Set("Content-Disposition", "form-data; name=\"files\"")
 			code, header, data, err := gatewayPost(
@@ -782,7 +815,7 @@ var checks = []*check{
 				}),
 				true,
 			)
-			header = http.Header{}
+			header = gohttp.Header{}
 			header.Set("Content-Type", "multipart/form-data; boundary="+r.Boundary())
 			header.Set("Content-Disposition", "form-data; name=\"files\"")
 			code, header, data, err = gatewayPost(
@@ -805,7 +838,7 @@ var checks = []*check{
 				}),
 				true,
 			)
-			header = http.Header{}
+			header = gohttp.Header{}
 			header.Set("Content-Type", "multipart/form-data; boundary="+r.Boundary())
 			header.Set("Content-Disposition", "form-data; name=\"files\"")
 			code, header, data, err = gatewayPost(
@@ -824,7 +857,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				"api/v0/files/read?arg=/mfs_file0.txt",
-				header,
+				nil,
 				r,
 			)
 			if err := logResp(code, header, data, err); err != nil {
@@ -839,7 +872,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				"api/v0/files/read?arg=/mfs_file0.txt&offset=10&count=5",
-				header,
+				nil,
 				r,
 			)
 			if err := logResp(code, header, data, err); err != nil {
@@ -854,7 +887,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				"api/v0/files/read?arg=/a_dir/mfs_file1.txt&offset=10&count=5",
-				header,
+				nil,
 				r,
 			)
 			if err := logResp(code, header, data, err); err != nil {
@@ -870,7 +903,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				fmt.Sprintf("api/v0/files/mkdir?arg=/a_dir/child_dir%v", ts),
-				header,
+				nil,
 				r,
 			)
 			if err := logResp(code, header, data, err); err != nil {
@@ -882,7 +915,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				"api/v0/files/ls?arg=/a_dir/",
-				header,
+				nil,
 				r,
 			)
 			if err := logResp(code, header, data, err); err != nil {
@@ -908,7 +941,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				fmt.Sprintf("api/v0/files/mv?arg=/a_dir/child_dir%v&arg=/a_dir/dir_to_del", ts),
-				header,
+				nil,
 				r,
 			)
 			if err := logResp(code, header, data, err); err != nil {
@@ -920,7 +953,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				"api/v0/files/mv?arg=/a_dir/mfs_file1.txt&arg=/a_dir/dir_to_del/file_to_del.txt",
-				header,
+				nil,
 				r,
 			)
 			if err := logResp(code, header, data, err); err != nil {
@@ -932,7 +965,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				"api/v0/files/rm?arg=/a_dir/dir_to_del&recursive=true",
-				header,
+				nil,
 				r,
 			)
 			if err := logResp(code, header, data, err); err != nil {

@@ -9,6 +9,7 @@ import (
 
 	coreiface "github.com/ipfs/boxo/coreiface"
 	"github.com/ipfs/boxo/files"
+
 	ipfsgw "github.com/ipfs/boxo/gateway"
 	dag "github.com/ipfs/boxo/ipld/merkledag"
 	"github.com/ipfs/boxo/mfs"

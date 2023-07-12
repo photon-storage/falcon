@@ -10,50 +10,65 @@ import (
 )
 
 func TestRedirect(t *testing.T) {
+	hostname := "xxx.gtw3.io"
 	path := "/ipfs/mock_cid/file.txt?arg=value"
-	original := "http://127.0.0.1:8080" + path
 	cases := []struct {
 		name     string
+		hostname string
+		original string
 		starbase string
 		expected string
 	}{
 		{
 			name:     "http",
-			starbase: "http://192.168.0.1",
-			expected: "http://192.168.0.1" + path,
+			original: "http://" + hostname + path,
+			starbase: "http://gw3.io",
+			expected: "http://gw3.io" + path,
 		},
 		{
 			name:     "https",
-			starbase: "https://192.168.0.1",
-			expected: "https://192.168.0.1" + path,
-		},
-		{
-			name:     "no scheme",
-			starbase: "https://192.168.0.1",
-			expected: "https://192.168.0.1" + path,
+			original: "https://" + hostname + path,
+			starbase: "https://gw3.io",
+			expected: "https://gw3.io" + path,
 		},
 		{
 			name:     "http with port",
-			starbase: "http://192.168.0.1:8080",
-			expected: "http://192.168.0.1:8080" + path,
+			original: "http://" + hostname + ":8080" + path,
+			starbase: "http://gw3.io",
+			expected: "http://gw3.io" + path,
 		},
 		{
 			name:     "https with port",
-			starbase: "https://192.168.0.1:8080",
-			expected: "https://192.168.0.1:8080" + path,
+			original: "https://" + hostname + ":8080" + path,
+			starbase: "https://gw3.io",
+			expected: "https://gw3.io" + path,
+		},
+		{
+			name:     "https with subdomain and port",
+			original: "https://mock_cid.ipfs." + hostname + ":8080" + path,
+			starbase: "https://gw3.io",
+			expected: "https://mock_cid.ipfs.gw3.io" + path,
+		},
+		{
+			name:     "https with subdomain and port",
+			original: "https://mock_cid.ipns." + hostname + ":8080" + path,
+			starbase: "https://gw3.io",
+			expected: "https://mock_cid.ipns.gw3.io" + path,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			r, err := gohttp.NewRequest(gohttp.MethodGet, original, nil)
-			require.NoError(t, err)
+			cfg := Config{}
+			cfg.GW3Hostname = hostname
+			cfg.ExternalServices.Starbase = c.starbase
+			MockCfg(&cfg)
 
-			target, err := url.Parse(c.starbase)
+			r, err := gohttp.NewRequest(gohttp.MethodGet, c.original, nil)
 			require.NoError(t, err)
 
 			w := httptest.NewRecorder()
-			redirectToStarbase(w, r, target)
+			redirectToStarbase(w, r)
 
 			require.Equal(t, gohttp.StatusTemporaryRedirect, w.Code)
 			u, err := url.Parse(w.Header().Get("Location"))

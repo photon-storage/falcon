@@ -3,7 +3,6 @@ package node
 import (
 	"context"
 	"net"
-	"net/http"
 	gohttp "net/http"
 	"strconv"
 	"strings"
@@ -11,6 +10,7 @@ import (
 
 	coreiface "github.com/ipfs/boxo/coreiface"
 	options "github.com/ipfs/boxo/coreiface/options"
+
 	"github.com/ipfs/boxo/gateway"
 	cmdshttp "github.com/ipfs/go-ipfs-cmds/http"
 	oldcmds "github.com/ipfs/kubo/commands"
@@ -22,6 +22,7 @@ import (
 	manet "github.com/multiformats/go-multiaddr/net"
 
 	"github.com/photon-storage/go-common/log"
+	"github.com/photon-storage/go-gw3/common/http"
 )
 
 const (
@@ -179,9 +180,19 @@ func hostnameOption(
 			return nil, err
 		}
 
-		nextMux := http.NewServeMux()
+		nextMux := gohttp.NewServeMux()
+
+		hostnameHandler := gateway.NewHostnameHandler(gwCfg, backend, nextMux)
 		mux.Handle("/", auth.wrap(report.wrap(
-			gateway.NewHostnameHandler(gwCfg, backend, nextMux),
+			gohttp.HandlerFunc(func(w gohttp.ResponseWriter, r *gohttp.Request) {
+				// Skip hostname options for writable APIs.
+				switch r.Method {
+				case gohttp.MethodPost, gohttp.MethodDelete, gohttp.MethodPut:
+					nextMux.ServeHTTP(w, r)
+				default:
+					hostnameHandler.ServeHTTP(w, r)
+				}
+			}),
 		)))
 
 		return nextMux, nil
@@ -310,14 +321,22 @@ func patchCORSVars(cfg *cmdshttp.ServerConfig, addr net.Addr) {
 func publicGatewayConfig(rcfg *config.Config) gateway.Config {
 	publicGws := map[string]*gateway.PublicGateway{
 		"localhost": {
-			Paths:         []string{"/ipfs/", "/ipns/"},
-			NoDNSLink:     rcfg.Gateway.NoDNSLink,
-			UseSubdomains: false,
+			Paths:                 []string{"/ipfs/", "/ipns/"},
+			NoDNSLink:             rcfg.Gateway.NoDNSLink,
+			UseSubdomains:         true,
+			DeserializedResponses: true,
+		},
+		http.KnownHostNoSubdomain: {
+			Paths:                 []string{"/ipfs/", "/ipns/"},
+			NoDNSLink:             rcfg.Gateway.NoDNSLink,
+			UseSubdomains:         false,
+			DeserializedResponses: true,
 		},
 		Cfg().GW3Hostname: {
-			Paths:         []string{"/ipfs/", "/ipns/"},
-			NoDNSLink:     rcfg.Gateway.NoDNSLink,
-			UseSubdomains: false,
+			Paths:                 []string{"/ipfs/", "/ipns/"},
+			NoDNSLink:             rcfg.Gateway.NoDNSLink,
+			UseSubdomains:         true,
+			DeserializedResponses: true,
 		},
 	}
 	// Follow the same logic from corehttp.convertPublicGateways()

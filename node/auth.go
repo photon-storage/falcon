@@ -21,7 +21,6 @@ import (
 type authHandler struct {
 	pk                libp2pcrypto.PubKey
 	redirectOnFailure bool
-	starbaseURL       *url.URL
 	gws               *hostnameGateways
 	wl                map[string]bool
 	recentSeen        *lru.Cache[uint64, bool]
@@ -30,7 +29,6 @@ type authHandler struct {
 func newAuthHandler(gws *hostnameGateways) (*authHandler, error) {
 	cfg := Cfg()
 	var pk libp2pcrypto.PubKey
-	var starbaseURL *url.URL
 	if cfg.Auth.NoAuth {
 		log.Warn("Falcon API authentication is disabled")
 	} else {
@@ -38,15 +36,6 @@ func newAuthHandler(gws *hostnameGateways) (*authHandler, error) {
 		if pk, err = auth.DecodePk(
 			cfg.Auth.StarbasePublicKeyBase64,
 		); err != nil {
-			return nil, err
-		}
-
-		dst := Cfg().ExternalServices.Starbase
-		if !strings.HasPrefix(dst, "http://") &&
-			!strings.HasPrefix(dst, "https://") {
-			dst = "http://" + dst
-		}
-		if starbaseURL, err = url.Parse(dst); err != nil {
 			return nil, err
 		}
 	}
@@ -65,7 +54,6 @@ func newAuthHandler(gws *hostnameGateways) (*authHandler, error) {
 	return &authHandler{
 		pk:                pk,
 		redirectOnFailure: cfg.Auth.RedirectOnFailure,
-		starbaseURL:       starbaseURL,
 		gws:               gws,
 		wl:                wl,
 		recentSeen:        cache,
@@ -123,11 +111,11 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 			wlPath = "/ipns"
 		} else if !strings.HasPrefix(wlPath, "/api/v0/") {
 			// Check subdomain namespace
-			host := r.Host
-			if xHost := r.Header.Get("X-Forwarded-Host"); xHost != "" {
-				host = xHost
-			}
-			if _, _, ns, _, ok := h.gws.knownSubdomainDetails(host); ok {
+			// In our case, always honor the real hostname.
+			// The http.HeaderForwaredHost header should only be extracted
+			// from Args, which is used by starbase to control if subdomain
+			// is enabled.
+			if _, _, ns, _, ok := h.gws.knownSubdomainDetails(r.Host); ok {
 				if ns == "ipfs" {
 					wlPath = "/ipfs"
 				} else if ns == "ipns" {
@@ -147,7 +135,7 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 		if r.Method != gohttp.MethodOptions && h.pk != nil {
 			if err := auth.VerifyRequest(r, h.pk); err != nil {
 				if err == auth.ErrReqSigMissing && h.redirectOnFailure {
-					redirectToStarbase(sw, r, h.starbaseURL)
+					redirectToStarbase(sw, r)
 				} else {
 					log.Debug("Authentication failure", "error", err)
 					gohttp.Error(
@@ -227,13 +215,21 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 	})
 }
 
-func redirectToStarbase(
-	w gohttp.ResponseWriter,
-	r *gohttp.Request,
-	target *url.URL,
-) {
+func redirectToStarbase(w gohttp.ResponseWriter, r *gohttp.Request) {
+	cfg := Cfg()
+	target := strings.TrimPrefix(
+		strings.TrimPrefix(
+			cfg.ExternalServices.Starbase,
+			"http://",
+		),
+		"https://",
+	)
 	url := *r.URL
-	url.Scheme = target.Scheme
-	url.Host = target.Host
+	url.Host = strings.Replace(
+		stripPort(url.Host),
+		cfg.GW3Hostname,
+		target,
+		1,
+	)
 	gohttp.Redirect(w, r, url.String(), gohttp.StatusTemporaryRedirect)
 }
