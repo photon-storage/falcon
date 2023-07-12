@@ -6,7 +6,7 @@ The falcon node is able to run by its own and acts like a normal IPFS node.
 However, it needs to join the [Gateway3](https://www.gw3.io) protocol in order to make its service accessible from the world.
 
 # Setup
-Falcon `checkss run against major Gateway APIs to ensure they return expected response.
+Falcon `checks` runs against major Gateway APIs to ensure they return expected response.
 The `checks` run requires subdomain to work.
 However, localhost does not support subdomain by default.
 We use local `dnsmasq` service to mock the DNS for localhost resolution.
