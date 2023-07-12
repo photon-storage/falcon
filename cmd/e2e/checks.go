@@ -16,8 +16,9 @@ import (
 	"github.com/ipfs/kubo/core/commands/name"
 	"github.com/ipfs/kubo/core/commands/pin"
 
-	"github.com/photon-storage/falcon/node/consts"
 	"github.com/photon-storage/go-gw3/common/http"
+
+	"github.com/photon-storage/falcon/node/consts"
 )
 
 var checks = []*check{
