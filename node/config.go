@@ -1,10 +1,8 @@
 package node
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"net"
+	gonet "net"
 	gohttp "net/http"
 	"os"
 	"strconv"
@@ -14,6 +12,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/photon-storage/go-gw3/common/auth"
+	"github.com/photon-storage/go-gw3/common/net"
 )
 
 type httpClient interface {
@@ -143,9 +142,9 @@ func initConfig(path string) error {
 	cfg.PublicKeyBase64 = pkStr
 
 	cfg.GW3Hostname = cfg.Discovery.PublicHost
-	if addr := net.ParseIP(cfg.GW3Hostname); addr != nil {
+	if addr := gonet.ParseIP(cfg.GW3Hostname); addr != nil {
 		// Convert IP to expected hashed domain name
-		cfg.GW3Hostname = gw3NodeHostname(cfg.GW3Hostname)
+		cfg.GW3Hostname = net.GW3Hostname(cfg.GW3Hostname)
 	}
 
 	cfg.HttpClient = gohttp.DefaultClient
@@ -176,15 +175,4 @@ func Cfg() *Config {
 
 func MockCfg(cfg *Config) {
 	_falconCfg = cfg
-}
-
-const (
-	HashLen    = 16
-	DomainName = "gtw3.link"
-)
-
-func gw3NodeHostname(ip string) string {
-	sum := sha256.Sum256([]byte(ip))
-	h := hex.EncodeToString(sum[:])
-	return fmt.Sprintf("%s.%s", h[:HashLen], DomainName)
 }
