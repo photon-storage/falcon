@@ -136,13 +136,11 @@ var checks = []*check{
 			// CID of empty directory.
 			root := "QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"
 			path := "falcon_test0.txt"
-			header := gohttp.Header{}
-			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err := gatewayPut(
 				ctx,
 				cfg,
 				fmt.Sprintf("ipfs/%s/%s", root, path),
-				header,
+				nil,
 				strings.NewReader(fmt.Sprintf(
 					"Photon Gateway PUT Test - File0 - %v",
 					time.Now().Format(time.RFC822Z),
@@ -159,13 +157,11 @@ var checks = []*check{
 				return fmt.Errorf("Root CID missing")
 			}
 			path = "falcon_test1.txt"
-			header = gohttp.Header{}
-			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err = gatewayPut(
 				ctx,
 				cfg,
 				fmt.Sprintf("ipfs/%s/%s", root, path),
-				header,
+				nil,
 				strings.NewReader(fmt.Sprintf(
 					"Photon Gateway PUT Test - File1 - %v",
 					time.Now().Format(time.RFC822Z),
@@ -183,13 +179,11 @@ var checks = []*check{
 			}
 
 			path = "a_dir/falcon_test2.txt"
-			header = gohttp.Header{}
-			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err = gatewayPut(
 				ctx,
 				cfg,
 				fmt.Sprintf("ipfs/%s/%s", root, path),
-				header,
+				nil,
 				strings.NewReader(fmt.Sprintf(
 					"Photon Gateway PUT Test - File2 - %v",
 					time.Now().Format(time.RFC822Z),
@@ -206,13 +200,11 @@ var checks = []*check{
 				return fmt.Errorf("Root CID missing")
 			}
 			path = "a_dir/falcon_test3.txt"
-			header = gohttp.Header{}
-			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err = gatewayPut(
 				ctx,
 				cfg,
 				fmt.Sprintf("ipfs/%s/%s", root, path),
-				header,
+				nil,
 				strings.NewReader(fmt.Sprintf(
 					"Photon Gateway PUT Test - File3 - %v",
 					time.Now().Format(time.RFC822Z),
@@ -259,13 +251,11 @@ var checks = []*check{
 
 			logStep("Delete file 3")
 
-			header = gohttp.Header{}
-			header.Set(http.HeaderForwardedHost, http.KnownHostNoSubdomain)
 			code, header, data, err = gatewayDel(
 				ctx,
 				cfg,
 				fmt.Sprintf("ipfs/%s/%s", root, path),
-				header,
+				nil,
 			)
 			if err := logResp(code, header, data, err); err != nil {
 				return err
@@ -686,7 +676,7 @@ var checks = []*check{
 					ctx,
 					cfg,
 					fmt.Sprintf("api/v0/dag/stat?arg=%v&progress=false", obj.Cid.String()),
-					header,
+					nil,
 					nil,
 				)
 				if err := logResp(code, header, data, err); err != nil {
@@ -742,7 +732,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				fmt.Sprintf("api/v0/dag/get?arg=%v", obj.Cid.String()),
-				header,
+				nil,
 				nil,
 			)
 			if err := logResp(code, header, data, err); err != nil {
@@ -755,7 +745,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				fmt.Sprintf("api/v0/dag/export?arg=%v&progress=false", obj.Cid.String()),
-				header,
+				nil,
 				nil,
 			)
 			if err := logResp(code, header, nil, err); err != nil {
@@ -867,7 +857,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				"api/v0/files/read?arg=/mfs_file0.txt",
-				header,
+				nil,
 				r,
 			)
 			if err := logResp(code, header, data, err); err != nil {
@@ -882,7 +872,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				"api/v0/files/read?arg=/mfs_file0.txt&offset=10&count=5",
-				header,
+				nil,
 				r,
 			)
 			if err := logResp(code, header, data, err); err != nil {
@@ -897,7 +887,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				"api/v0/files/read?arg=/a_dir/mfs_file1.txt&offset=10&count=5",
-				header,
+				nil,
 				r,
 			)
 			if err := logResp(code, header, data, err); err != nil {
@@ -913,7 +903,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				fmt.Sprintf("api/v0/files/mkdir?arg=/a_dir/child_dir%v", ts),
-				header,
+				nil,
 				r,
 			)
 			if err := logResp(code, header, data, err); err != nil {
@@ -925,7 +915,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				"api/v0/files/ls?arg=/a_dir/",
-				header,
+				nil,
 				r,
 			)
 			if err := logResp(code, header, data, err); err != nil {
@@ -951,7 +941,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				fmt.Sprintf("api/v0/files/mv?arg=/a_dir/child_dir%v&arg=/a_dir/dir_to_del", ts),
-				header,
+				nil,
 				r,
 			)
 			if err := logResp(code, header, data, err); err != nil {
@@ -963,7 +953,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				"api/v0/files/mv?arg=/a_dir/mfs_file1.txt&arg=/a_dir/dir_to_del/file_to_del.txt",
-				header,
+				nil,
 				r,
 			)
 			if err := logResp(code, header, data, err); err != nil {
@@ -975,7 +965,7 @@ var checks = []*check{
 				ctx,
 				cfg,
 				"api/v0/files/rm?arg=/a_dir/dir_to_del&recursive=true",
-				header,
+				nil,
 				r,
 			)
 			if err := logResp(code, header, data, err); err != nil {
