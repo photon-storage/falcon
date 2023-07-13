@@ -73,6 +73,7 @@ func TestReport(t *testing.T) {
 	require.NoError(t, auth.VerifySigBase64(
 		auth.GenStringToSign(
 			log.Req.Method,
+			log.Req.Host,
 			log.Req.URI,
 			log.Req.Args,
 		),
