@@ -217,18 +217,21 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 
 func redirectToStarbase(w gohttp.ResponseWriter, r *gohttp.Request) {
 	cfg := Cfg()
-	target := strings.TrimPrefix(
-		strings.TrimPrefix(
-			cfg.ExternalServices.Starbase,
-			"http://",
-		),
-		"https://",
-	)
+	scheme := "https"
+	targetHost := cfg.ExternalServices.Starbase
+	if strings.HasPrefix(targetHost, "http://") {
+		scheme = "http"
+		targetHost = targetHost[7:]
+	} else if strings.HasPrefix(targetHost, "https://") {
+		targetHost = targetHost[8:]
+	}
+
 	url := *r.URL
+	url.Scheme = scheme
 	url.Host = strings.Replace(
 		stripPort(r.Host),
 		cfg.GW3Hostname,
-		target,
+		targetHost,
 		1,
 	)
 	gohttp.Redirect(w, r, url.String(), gohttp.StatusTemporaryRedirect)
