@@ -123,6 +123,7 @@ func reportRequest(
 		Version: 1,
 		Req: reporting.AuthReq{
 			Method: r.Method,
+			Host:   r.Host,
 			URI:    uri,
 			Args:   query.Get(http.ParamP3Args),
 			Sig:    query.Get(http.ParamP3Sig),
