@@ -163,7 +163,7 @@ func (c *Config) RequireTLSCert() bool {
 }
 
 func (c *Config) EnableNodeRegistration() bool {
-	return c.ExternalServices.Starbase != ""
+	return c.ExternalServices.Starbase != "" && c.GW3Hostname != "localhost"
 }
 
 func Cfg() *Config {
