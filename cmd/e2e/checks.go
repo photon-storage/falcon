@@ -490,7 +490,7 @@ var checks = []*check{
 				return fmt.Errorf("CID missing")
 			}
 
-			for iter := 0; iter < 1; iter++ {
+			for iter := 0; iter < 2; iter++ {
 				logStep("Pin data, iter = %v", iter)
 				done := false
 				for !done {

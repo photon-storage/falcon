@@ -14,6 +14,7 @@ import (
 	mdag "github.com/ipfs/boxo/ipld/merkledag"
 	"github.com/ipfs/boxo/ipld/merkledag/traverse"
 	"github.com/ipfs/go-cid"
+	"go.uber.org/atomic"
 
 	"github.com/photon-storage/go-common/log"
 	"github.com/photon-storage/go-common/metrics"
@@ -50,21 +51,43 @@ func (h *reportHandler) wrap(next gohttp.Handler) gohttp.Handler {
 			next.ServeHTTP(w, r)
 			return
 		}
+		// Make a copy of the original request, so that the context
+		// is not affected by cancellation.
+		origReq := r.Clone(r.Context())
 		r = r.WithContext(SetNoReportFromCtx(r.Context()))
 
-		maxSize := 0
-		if args := GetArgsFromCtx(r.Context()); args != nil {
-			if str := args.GetArg(http.ArgP3Size); str != "" {
-				sz, err := strconv.ParseInt(str, 10, 64)
-				if err != nil {
-					gohttp.Error(
-						w,
-						gohttp.StatusText(gohttp.StatusBadRequest),
-						gohttp.StatusBadRequest,
-					)
-					return
-				}
-				maxSize = int(sz)
+		maxSize, err := extractSizeFromArgs(r)
+		if err != nil {
+			gohttp.Error(
+				w,
+				gohttp.StatusText(gohttp.StatusBadRequest),
+				gohttp.StatusBadRequest,
+			)
+			return
+		}
+
+		dagSize := atomic.NewUint64(0)
+		if auth.CanonicalizeURI(r.URL.Path) == "/api/v0/pin/add" {
+			// Enable dag size tracking for pin add.
+			ctx, cancel := context.WithCancel(r.Context())
+			defer cancel()
+
+			r = r.WithContext(SetDagSizeFromCtx(ctx, dagSize))
+			if maxSize > 0 {
+				go func() {
+					timer := time.NewTimer(time.Second)
+					for {
+						select {
+						case <-ctx.Done():
+							return
+						case <-timer.C:
+							if int(dagSize.Load()) > maxSize {
+								cancel()
+								return
+							}
+						}
+					}
+				}()
 			}
 		}
 
@@ -84,13 +107,13 @@ func (h *reportHandler) wrap(next gohttp.Handler) gohttp.Handler {
 				cr.Context(),
 				h.coreapi,
 				cr,
-				ingr.size(),
+				ingr.size()+int(dagSize.Load()),
 				egr.size(),
 			); err != nil {
 				metrics.CounterInc("request_log_err_total")
 				log.Error("Error making log request", "error", err)
 			}
-		}(r.Clone(r.Context()))
+		}(origReq)
 
 		next.ServeHTTP(w, r)
 	})
@@ -199,4 +222,18 @@ func calculateCidSize(
 	}
 
 	return sz, nil
+}
+
+func extractSizeFromArgs(r *gohttp.Request) (int, error) {
+	size := 0
+	if args := GetArgsFromCtx(r.Context()); args != nil {
+		if str := args.GetArg(http.ArgP3Size); str != "" {
+			sz, err := strconv.ParseInt(str, 10, 64)
+			if err != nil {
+				return 0, nil
+			}
+			size = int(sz)
+		}
+	}
+	return size, nil
 }
