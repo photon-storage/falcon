@@ -3,7 +3,10 @@ package node
 import (
 	"context"
 
+	"go.uber.org/atomic"
+
 	"github.com/photon-storage/go-gw3/common/http"
+	rcpinner "github.com/photon-storage/go-rc-pinner"
 )
 
 const (
@@ -58,4 +61,8 @@ func GetNoReportFromCtx(ctx context.Context) bool {
 		return false
 	}
 	return noreport
+}
+
+func SetDagSizeFromCtx(ctx context.Context, v *atomic.Uint64) context.Context {
+	return context.WithValue(ctx, rcpinner.DagSizeContextKey, v)
 }
