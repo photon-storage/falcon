@@ -74,8 +74,10 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 			return
 		}
 
+		uri := auth.CanonicalizeURI(r.URL.Path)
+
 		// Global request timeout: 10 mins
-		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Minute)
+		ctx, cancel := context.WithTimeout(r.Context(), getUriTimeout(uri))
 		defer cancel()
 		r = r.WithContext(ctx)
 
@@ -104,12 +106,11 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 			return
 		}
 
-		wlPath := auth.CanonicalizeURI(r.URL.Path)
-		if strings.HasPrefix(wlPath, "/ipfs/") {
-			wlPath = "/ipfs"
-		} else if strings.HasPrefix(wlPath, "/ipns/") {
-			wlPath = "/ipns"
-		} else if !strings.HasPrefix(wlPath, "/api/v0/") {
+		if strings.HasPrefix(uri, "/ipfs/") {
+			uri = "/ipfs"
+		} else if strings.HasPrefix(uri, "/ipns/") {
+			uri = "/ipns"
+		} else if !strings.HasPrefix(uri, "/api/v0/") {
 			// Check subdomain namespace
 			// In our case, always honor the real hostname.
 			// The http.HeaderForwaredHost header should only be extracted
@@ -117,14 +118,14 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 			// is enabled.
 			if _, _, ns, _, ok := h.gws.knownSubdomainDetails(r.Host); ok {
 				if ns == "ipfs" {
-					wlPath = "/ipfs"
+					uri = "/ipfs"
 				} else if ns == "ipns" {
-					wlPath = "/ipns"
+					uri = "/ipns"
 				}
 			}
 		}
 
-		if !h.wl[wlPath] {
+		if !h.wl[uri] {
 			gohttp.Error(
 				sw,
 				gohttp.StatusText(gohttp.StatusNotFound),
