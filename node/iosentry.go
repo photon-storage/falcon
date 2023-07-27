@@ -48,7 +48,9 @@ func newContentSentry(
 			case <-ticker.C:
 				s.mu.Lock()
 				if !s.headerWritten {
-					s.w.WriteHeader(http.StatusProcessing)
+					// Golang http client has a limit (5) for receiving
+					// informational status.
+					// s.w.WriteHeader(http.StatusProcessing)
 				} else {
 					s.mu.Unlock()
 					return
