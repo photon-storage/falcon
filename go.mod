@@ -8,7 +8,7 @@ require (
 	github.com/gogo/protobuf v1.3.2
 	github.com/google/uuid v1.3.0
 	github.com/hashicorp/go-multierror v1.1.1
-	github.com/hashicorp/golang-lru/v2 v2.0.2
+	github.com/hashicorp/golang-lru/v2 v2.0.4
 	github.com/ipfs/boxo v0.10.2
 	github.com/ipfs/go-cid v0.4.1
 	github.com/ipfs/go-datastore v0.6.0
@@ -25,7 +25,7 @@ require (
 	github.com/multiformats/go-multibase v0.2.0
 	github.com/photon-storage/go-common v0.0.0-20230504104528-a237492a0c5b
 	github.com/photon-storage/go-gw3 v0.0.0-20230713054854-2d0d12911627
-	github.com/photon-storage/go-rc-pinner v0.0.0-20230721051507-dc6bc3a2df3e
+	github.com/photon-storage/go-rc-pinner v0.0.0-20230727083219-96a943c1a9e3
 	github.com/prometheus/client_golang v1.14.0
 	github.com/stretchr/testify v1.8.4
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.42.0
