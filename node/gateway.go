@@ -92,7 +92,7 @@ func initFalconGateway(
 	if err != nil {
 		return nil, err
 	}
-	report := newReportHandler(coreapi)
+	report := newMonitorHandler(coreapi)
 
 	opts := []corehttp.ServeOption{
 		// The order of options is important. apiOption and hostnameOption
@@ -135,7 +135,7 @@ func apiOption(
 	rcfg *config.Config,
 	coreapi coreiface.CoreAPI,
 	auth *authHandler,
-	report *reportHandler,
+	report *monitorHandler,
 ) corehttp.ServeOption {
 	return func(
 		nd *core.IpfsNode,
@@ -168,7 +168,7 @@ func hostnameOption(
 	rcfg *config.Config,
 	gwCfg gateway.Config,
 	auth *authHandler,
-	report *reportHandler,
+	report *monitorHandler,
 ) corehttp.ServeOption {
 	return func(
 		nd *core.IpfsNode,
@@ -204,7 +204,7 @@ func gatewayOption(
 	coreapi coreiface.CoreAPI,
 	gwCfg gateway.Config,
 	auth *authHandler,
-	report *reportHandler,
+	report *monitorHandler,
 ) corehttp.ServeOption {
 	return func(
 		nd *core.IpfsNode,

@@ -14,6 +14,7 @@ import (
 	crypto "github.com/photon-storage/go-gw3/common/crypto"
 	"github.com/photon-storage/go-gw3/common/http"
 	"github.com/photon-storage/go-gw3/common/reporting"
+	"go.uber.org/atomic"
 )
 
 type mockHttpClient struct {
@@ -26,17 +27,16 @@ func (c *mockHttpClient) Do(req *gohttp.Request) (*gohttp.Response, error) {
 	return c.resp, nil
 }
 
-func TestReport(t *testing.T) {
-	ctx := context.Background()
+func TestSendLog(t *testing.T) {
 	sk0 := crypto.PregenEd25519(0)
 	sk1 := crypto.PregenEd25519(1)
-	mc := &mockHttpClient{
+	mockCli := &mockHttpClient{
 		resp: &gohttp.Response{
 			StatusCode: gohttp.StatusOK,
 		},
 	}
 	cfg := &Config{
-		HttpClient: mc,
+		HttpClient: mockCli,
 		SecretKey:  sk1,
 	}
 	cfg.ExternalServices.Spaceport = "http://127.0.0.1:9981"
@@ -59,9 +59,18 @@ func TestReport(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, auth.SignRequest(req, args, sk0))
 
-	require.NoError(t, reportRequest(ctx, nil, req, 100, 8192))
+	maxSize := 1 << 20
+	httpIngr := newIngressCounter(nil, maxSize)
+	httpIngr.sz = 100
+	httpEgr := newEgressCounter(nil)
+	httpEgr.sz = 8192
+	mon := newMonitor(nil, req, httpIngr, httpEgr, atomic.NewUint64(100), maxSize)
 
-	logdata, err := ioutil.ReadAll(mc.req.Body)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	mon.run(ctx, cancel)
+
+	logdata, err := ioutil.ReadAll(mockCli.req.Body)
 	require.NoError(t, err)
 
 	var log reporting.LogV1
@@ -81,12 +90,12 @@ func TestReport(t *testing.T) {
 		sk0.GetPublic(),
 	))
 	require.Equal(t, 0, log.CidSize)
-	require.Equal(t, 100, log.Ingress)
+	require.Equal(t, 200, log.Ingress)
 	require.Equal(t, 8192, log.Egress)
 
 	require.NoError(t, auth.VerifySigBase64(
 		string(logdata),
-		mc.req.Header.Get(http.HeaderAuthorization),
+		mockCli.req.Header.Get(http.HeaderAuthorization),
 		sk1.GetPublic(),
 	))
 }

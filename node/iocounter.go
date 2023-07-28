@@ -11,7 +11,7 @@ var (
 )
 
 const (
-	allowance = 1024
+	allowance = 16 * 1024
 )
 
 // ingressCounter is a wrapper for the underlying http.Request.Body and counts
