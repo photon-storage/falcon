@@ -159,7 +159,7 @@ func overrideIPFSConfig(repo repo.Repo) error {
 	// Force IPNS pubsub
 	setFlag(
 		&rcfg.Ipns.UsePubsub,
-		config.True,
+		config.False,
 		&modified,
 	)
 
