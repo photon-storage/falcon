@@ -2,7 +2,6 @@ package node
 
 import (
 	"context"
-	"fmt"
 	"hash/fnv"
 	gohttp "net/http"
 	"net/url"
@@ -13,7 +12,6 @@ import (
 	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/photon-storage/go-common/log"
-	"github.com/photon-storage/go-common/metrics"
 	"github.com/photon-storage/go-gw3/common/auth"
 	"github.com/photon-storage/go-gw3/common/http"
 )
@@ -81,21 +79,25 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 		defer cancel()
 		r = r.WithContext(ctx)
 
-		sw := newContentSentry(ctx, w)
-		defer func() {
-			sw.flush()
+		// Disable sentry
+		/*
+			sw := newContentSentry(ctx, w)
+			defer func() {
+				sw.flush()
 
-			metrics.CounterInc("request_call_total")
-			flagged := sw.getFlaggedRuleName()
-			if flagged != "" {
-				metrics.CounterInc(fmt.Sprintf(
-					"request_blocked_total.rule#%v",
-					flagged,
-				))
-			} else {
-				metrics.CounterInc("request_served_total")
-			}
-		}()
+				metrics.CounterInc("request_call_total")
+				flagged := sw.getFlaggedRuleName()
+				if flagged != "" {
+					metrics.CounterInc(fmt.Sprintf(
+						"request_blocked_total.rule#%v",
+						flagged,
+					))
+				} else {
+					metrics.CounterInc("request_served_total")
+				}
+			}()
+		*/
+		sw := w
 
 		if false && r.Method != gohttp.MethodOptions && h.hasRecentSeen(r) {
 			gohttp.Error(
