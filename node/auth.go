@@ -4,6 +4,7 @@ import (
 	"context"
 	"hash/fnv"
 	gohttp "net/http"
+	"net/textproto"
 	"net/url"
 	"strings"
 	"time"
@@ -14,6 +15,12 @@ import (
 	"github.com/photon-storage/go-common/log"
 	"github.com/photon-storage/go-gw3/common/auth"
 	"github.com/photon-storage/go-gw3/common/http"
+)
+
+var (
+	headerWhitelist = []string{
+		textproto.CanonicalMIMEHeaderKey("Content-Type"),
+	}
 )
 
 type authHandler struct {
@@ -169,7 +176,15 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 			query.Set(http.ParamP3Args, orig.Get(http.ParamP3Args))
 			query.Set(http.ParamP3Sig, orig.Get(http.ParamP3Sig))
 		}
-		r.Header = gohttp.Header{}
+
+		// Keep whitelisted headers
+		header := gohttp.Header{}
+		for _, k := range headerWhitelist {
+			if v := r.Header.Values(k); v != nil {
+				header[k] = v
+			}
+		}
+		r.Header = header
 
 		// Recover query parameters and headers from P3 args.
 		p3args := orig.Get(http.ParamP3Args)
@@ -204,6 +219,10 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 				}
 			}
 			for k, v := range args.Headers {
+				if r.Header.Values(k) != nil {
+					// Ignore whitelisted header if already set.
+					continue
+				}
 				parts := strings.Split(v, ";;;")
 				for _, part := range parts {
 					r.Header.Add(k, part)
