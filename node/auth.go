@@ -4,6 +4,7 @@ import (
 	"context"
 	"hash/fnv"
 	gohttp "net/http"
+	"net/textproto"
 	"net/url"
 	"strings"
 	"time"
@@ -18,7 +19,7 @@ import (
 
 var (
 	headerWhitelist = []string{
-		"Content-Type",
+		textproto.CanonicalMIMEHeaderKey("Content-Type"),
 	}
 )
 
