@@ -11,6 +11,8 @@ auth:
   whitelist:
     - /ipfs
     - /ipns
+    - /api/v0/block/get
+    - /api/v0/block/put
     - /api/v0/pin/ls
     - /api/v0/pin/add
     # - /api/v0/pin/update
