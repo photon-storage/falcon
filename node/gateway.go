@@ -151,12 +151,10 @@ func apiOption(
 			report.wrap(buildApiHandler(*cctx, lis)),
 		))
 		// Custom /api/v0 APIs.
-		mux.Handle(apiPrefix+"/pin/add", auth.wrap(
-			report.wrap(extHandlers.pinnedCount()),
-		))
 		mux.Handle(apiPrefix+"/pin/count", auth.wrap(
 			report.wrap(extHandlers.pinnedCount()),
 		))
+
 		mux.Handle(apiPrefix+"/name/broadcast", auth.wrap(
 			report.wrap(extHandlers.nameBroadcast()),
 		))
