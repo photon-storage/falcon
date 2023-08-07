@@ -52,6 +52,19 @@ func (h *extendedHandlers) status() gohttp.HandlerFunc {
 	})
 }
 
+func (h *extendedHandlers) pinAdd() gohttp.HandlerFunc {
+	return gohttp.HandlerFunc(func(w gohttp.ResponseWriter, r *gohttp.Request) {
+		writeJSON(
+			w,
+			gohttp.StatusOK,
+			&StatusResult{
+				Status:    "!!ok",
+				PublicKey: Cfg().PublicKeyBase64,
+			},
+		)
+	})
+}
+
 type PinnedCountResult struct {
 	Count   int    `json:"count"`
 	Message string `json:"message"`
