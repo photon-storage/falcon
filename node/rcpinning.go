@@ -167,9 +167,19 @@ func (p *wrappedPinner) PinnedCount(
 	ctx context.Context,
 	c cid.Cid,
 ) (uint16, error) {
-	return p.pinner.PinnedCount(ctx, c)
+	rc, err := p.pinner.PinnedCount(ctx, c, true)
+	if err != nil {
+		return 0, err
+	}
+
+	dc, err := p.pinner.PinnedCount(ctx, c, false)
+	if err != nil {
+		return 0, err
+	}
+
+	return rc + dc, nil
 }
 
 func (p *wrappedPinner) getTotalPinnedCount() int64 {
-	return int64(p.pinner.TotalPinnedCount())
+	return int64(p.pinner.TotalPinnedCount(true) + p.pinner.TotalPinnedCount(false))
 }

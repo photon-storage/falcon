@@ -25,7 +25,7 @@ require (
 	github.com/multiformats/go-multibase v0.2.0
 	github.com/photon-storage/go-common v0.0.0-20230504104528-a237492a0c5b
 	github.com/photon-storage/go-gw3 v0.0.0-20230713054854-2d0d12911627
-	github.com/photon-storage/go-rc-pinner v0.0.0-20230727083219-96a943c1a9e3
+	github.com/photon-storage/go-rc-pinner v0.0.0-20230802041458-81aa8b1d8030
 	github.com/prometheus/client_golang v1.14.0
 	github.com/stretchr/testify v1.8.4
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.42.0
