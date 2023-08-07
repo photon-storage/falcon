@@ -7,10 +7,12 @@ import (
 	"go.uber.org/zap/zapcore"
 
 	"github.com/photon-storage/go-common/log"
+
+	"github.com/photon-storage/falcon/node/config"
 )
 
 func initLog() error {
-	cfg := Cfg()
+	cfg := config.Get()
 
 	logLvl, err := log.ParseLevel(cfg.Log.Level)
 	if err != nil {

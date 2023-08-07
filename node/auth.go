@@ -15,6 +15,8 @@ import (
 	"github.com/photon-storage/go-common/log"
 	"github.com/photon-storage/go-gw3/common/auth"
 	"github.com/photon-storage/go-gw3/common/http"
+
+	"github.com/photon-storage/falcon/node/config"
 )
 
 var (
@@ -32,7 +34,7 @@ type authHandler struct {
 }
 
 func newAuthHandler(gws *hostnameGateways) (*authHandler, error) {
-	cfg := Cfg()
+	cfg := config.Get()
 	var pk libp2pcrypto.PubKey
 	if cfg.Auth.NoAuth {
 		log.Warn("Falcon API authentication is disabled")
@@ -238,7 +240,7 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 }
 
 func redirectToStarbase(w gohttp.ResponseWriter, r *gohttp.Request) {
-	cfg := Cfg()
+	cfg := config.Get()
 	scheme := "https"
 	targetHost := cfg.ExternalServices.Starbase
 	if strings.HasPrefix(targetHost, "http://") {

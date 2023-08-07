@@ -11,6 +11,7 @@ import (
 
 	"github.com/ipfs/kubo/core"
 
+	"github.com/photon-storage/falcon/node/config"
 	"github.com/photon-storage/go-common/log"
 	"github.com/photon-storage/go-gw3/common/auth"
 	"github.com/photon-storage/go-gw3/common/http"
@@ -29,7 +30,7 @@ type RegisterResult struct {
 }
 
 func registerFalconNode(ctx context.Context, _ *core.IpfsNode) error {
-	cfg := Cfg()
+	cfg := config.Get()
 
 	// Purge expired certficates and retrieve from starbase if none exists.
 	fetchCert := false

@@ -1,4 +1,4 @@
-package node
+package config
 
 import (
 	"fmt"
@@ -90,7 +90,7 @@ type Config struct {
 // Global Config instance read-only after init.
 var _falconCfg *Config
 
-func initConfig(path string) error {
+func Init(path string) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("error opening falcon config file: %w", err)
@@ -154,7 +154,7 @@ func initConfig(path string) error {
 }
 
 func (c *Config) RequireTLSCert() bool {
-	for _, la := range Cfg().ListenAddresses {
+	for _, la := range Get().ListenAddresses {
 		if la.UseTLS {
 			return true
 		}
@@ -166,13 +166,13 @@ func (c *Config) EnableNodeRegistration() bool {
 	return c.ExternalServices.Starbase != "" && c.GW3Hostname != "localhost"
 }
 
-func Cfg() *Config {
+func Get() *Config {
 	if _falconCfg == nil {
 		panic("Falcon config is not initialized")
 	}
 	return _falconCfg
 }
 
-func MockCfg(cfg *Config) {
+func Mock(cfg *Config) {
 	_falconCfg = cfg
 }

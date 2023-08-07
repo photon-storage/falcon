@@ -9,12 +9,15 @@ import (
 	"testing"
 	"time"
 
+	"go.uber.org/atomic"
+
 	"github.com/photon-storage/go-common/testing/require"
 	"github.com/photon-storage/go-gw3/common/auth"
-	crypto "github.com/photon-storage/go-gw3/common/crypto"
+	"github.com/photon-storage/go-gw3/common/crypto"
 	"github.com/photon-storage/go-gw3/common/http"
 	"github.com/photon-storage/go-gw3/common/reporting"
-	"go.uber.org/atomic"
+
+	"github.com/photon-storage/falcon/node/config"
 )
 
 type mockHttpClient struct {
@@ -35,12 +38,12 @@ func TestSendLog(t *testing.T) {
 			StatusCode: gohttp.StatusOK,
 		},
 	}
-	cfg := &Config{
+	cfg := &config.Config{
 		HttpClient: mockCli,
 		SecretKey:  sk1,
 	}
 	cfg.ExternalServices.Spaceport = "http://127.0.0.1:9981"
-	MockCfg(cfg)
+	config.Mock(cfg)
 
 	args := http.NewArgs().
 		SetArg(
