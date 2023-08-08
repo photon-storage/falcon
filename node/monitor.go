@@ -17,6 +17,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"go.uber.org/atomic"
 
+	"github.com/photon-storage/falcon/node/config"
 	"github.com/photon-storage/go-common/log"
 	"github.com/photon-storage/go-common/metrics"
 	"github.com/photon-storage/go-gw3/common/auth"
@@ -43,7 +44,7 @@ func newMonitorHandler(coreapi coreiface.CoreAPI) *monitorHandler {
 
 // This should be chained after auth, which decoded args.
 func (m *monitorHandler) wrap(next gohttp.Handler) gohttp.Handler {
-	if Cfg().ExternalServices.Spaceport == "" {
+	if config.Get().ExternalServices.Spaceport == "" {
 		return next
 	}
 
@@ -223,7 +224,7 @@ func sendLog(
 		return fmt.Errorf("error marshaling log struct: %w", err)
 	}
 
-	cfg := Cfg()
+	cfg := config.Get()
 
 	req, err := gohttp.NewRequest(
 		gohttp.MethodPost,

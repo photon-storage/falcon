@@ -1,4 +1,4 @@
-package node
+package com
 
 import (
 	"context"
@@ -36,13 +36,13 @@ func RcPinning(
 		panic(err)
 	}
 
-	return &wrappedPinner{
-		pinner: pinner,
+	return &WrappedPinner{
+		Pinner: pinner,
 	}
 }
 
-func getRcPinner(v pin.Pinner) *wrappedPinner {
-	if p, ok := v.(*wrappedPinner); ok {
+func GetRcPinner(v pin.Pinner) *WrappedPinner {
+	if p, ok := v.(*WrappedPinner); ok {
 		return p
 	}
 	return nil
@@ -72,52 +72,52 @@ func (s *syncDagService) Session(ctx context.Context) ipld.NodeGetter {
 	return merkledag.NewSession(ctx, s.DAGService)
 }
 
-type wrappedPinner struct {
-	pinner *rcpinner.RcPinner
+type WrappedPinner struct {
+	Pinner *rcpinner.RcPinner
 }
 
-func (p *wrappedPinner) IsPinned(
+func (p *WrappedPinner) IsPinned(
 	ctx context.Context,
 	c cid.Cid,
 ) (string, bool, error) {
-	return p.pinner.IsPinned(ctx, c)
+	return p.Pinner.IsPinned(ctx, c)
 }
 
-func (p *wrappedPinner) IsPinnedWithType(
+func (p *WrappedPinner) IsPinnedWithType(
 	ctx context.Context,
 	c cid.Cid,
 	mode pin.Mode,
 ) (string, bool, error) {
-	return p.pinner.IsPinnedWithType(ctx, c, mode)
+	return p.Pinner.IsPinnedWithType(ctx, c, mode)
 }
 
-func (p *wrappedPinner) Pin(
+func (p *WrappedPinner) Pin(
 	ctx context.Context,
 	node ipld.Node,
 	recursive bool,
 ) error {
 	metrics.CounterInc("rc_pinner_pin_call_total")
-	if err := p.pinner.Pin(ctx, node, recursive); err != nil {
+	if err := p.Pinner.Pin(ctx, node, recursive); err != nil {
 		metrics.CounterInc("rc_pinner_pin_err_total")
 		return err
 	}
 	return nil
 }
 
-func (p *wrappedPinner) Unpin(
+func (p *WrappedPinner) Unpin(
 	ctx context.Context,
 	cid cid.Cid,
 	recursive bool,
 ) error {
 	metrics.CounterInc("rc_pinner_unpin_call_total")
-	if err := p.pinner.Unpin(ctx, cid, recursive); err != nil {
+	if err := p.Pinner.Unpin(ctx, cid, recursive); err != nil {
 		metrics.CounterInc("rc_pinner_unpin_err_total")
 		return err
 	}
 	return nil
 }
 
-func (p *wrappedPinner) Update(
+func (p *WrappedPinner) Update(
 	ctx context.Context,
 	from cid.Cid,
 	to cid.Cid,
@@ -126,53 +126,54 @@ func (p *wrappedPinner) Update(
 	return rcpinner.ErrUpdateUnsupported
 }
 
-func (p *wrappedPinner) CheckIfPinned(
+func (p *WrappedPinner) CheckIfPinned(
 	ctx context.Context,
 	cids ...cid.Cid,
 ) ([]pin.Pinned, error) {
-	return p.pinner.CheckIfPinned(ctx, cids...)
+	return p.Pinner.CheckIfPinned(ctx, cids...)
 }
 
-func (p *wrappedPinner) PinWithMode(
+func (p *WrappedPinner) PinWithMode(
 	ctx context.Context,
 	cid cid.Cid,
 	mode pin.Mode) error {
-	return p.pinner.PinWithMode(ctx, cid, mode)
+	return p.Pinner.PinWithMode(ctx, cid, mode)
 }
 
-func (p *wrappedPinner) Flush(ctx context.Context) error {
-	return p.pinner.Flush(ctx)
+func (p *WrappedPinner) Flush(ctx context.Context) error {
+	return p.Pinner.Flush(ctx)
 }
 
-func (p *wrappedPinner) DirectKeys(
+func (p *WrappedPinner) DirectKeys(
 	ctx context.Context,
 ) <-chan pin.StreamedCid {
-	return p.pinner.DirectKeys(ctx)
+	metrics.CounterInc("rc_pinner_direct_keys_call_total")
+	return p.Pinner.DirectKeys(ctx)
 }
 
-func (p *wrappedPinner) RecursiveKeys(
+func (p *WrappedPinner) RecursiveKeys(
 	ctx context.Context,
 ) <-chan pin.StreamedCid {
 	metrics.CounterInc("rc_pinner_recursive_keys_call_total")
-	return p.pinner.RecursiveKeys(ctx)
+	return p.Pinner.RecursiveKeys(ctx)
 }
 
-func (p *wrappedPinner) InternalPins(
+func (p *WrappedPinner) InternalPins(
 	ctx context.Context,
 ) <-chan pin.StreamedCid {
-	return p.pinner.InternalPins(ctx)
+	return p.Pinner.InternalPins(ctx)
 }
 
-func (p *wrappedPinner) PinnedCount(
+func (p *WrappedPinner) PinnedCount(
 	ctx context.Context,
 	c cid.Cid,
 ) (uint16, error) {
-	rc, err := p.pinner.PinnedCount(ctx, c, true)
+	rc, err := p.Pinner.PinnedCount(ctx, c, true)
 	if err != nil {
 		return 0, err
 	}
 
-	dc, err := p.pinner.PinnedCount(ctx, c, false)
+	dc, err := p.Pinner.PinnedCount(ctx, c, false)
 	if err != nil {
 		return 0, err
 	}
@@ -180,6 +181,15 @@ func (p *wrappedPinner) PinnedCount(
 	return rc + dc, nil
 }
 
-func (p *wrappedPinner) getTotalPinnedCount() int64 {
-	return int64(p.pinner.TotalPinnedCount(true) + p.pinner.TotalPinnedCount(false))
+func (p *WrappedPinner) TotalPinnedCount() int64 {
+	return int64(p.Pinner.TotalPinnedCount(true) + p.Pinner.TotalPinnedCount(false))
+}
+
+func RegisterPinnerMetrics() {
+	metrics.NewCounter("rc_pinner_pin_call_total")
+	metrics.NewCounter("rc_pinner_pin_err_total")
+	metrics.NewCounter("rc_pinner_unpin_call_total")
+	metrics.NewCounter("rc_pinner_unpin_err_total")
+	metrics.NewCounter("rc_pinner_direct_keys_call_total")
+	metrics.NewCounter("rc_pinner_recursive_keys_call_total")
 }

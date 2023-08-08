@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/photon-storage/go-common/testing/require"
+
+	"github.com/photon-storage/falcon/node/config"
 )
 
 func TestRedirect(t *testing.T) {
@@ -59,10 +61,10 @@ func TestRedirect(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			cfg := Config{}
+			cfg := config.Config{}
 			cfg.GW3Hostname = hostname
 			cfg.ExternalServices.Starbase = c.starbase
-			MockCfg(&cfg)
+			config.Mock(&cfg)
 
 			r, err := gohttp.NewRequest(gohttp.MethodGet, c.original, nil)
 			require.NoError(t, err)

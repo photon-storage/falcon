@@ -1,35 +1,27 @@
-package node
+package handlers
 
 import (
 	"context"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	gohttp "net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
-	"github.com/gogo/protobuf/proto"
 	bs "github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange/offline"
 	mdag "github.com/ipfs/boxo/ipld/merkledag"
-	"github.com/ipfs/boxo/ipns"
 	util "github.com/ipfs/boxo/util"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
 	"github.com/ipfs/kubo/core"
-	ir "github.com/ipfs/kubo/routing"
-	"github.com/libp2p/go-libp2p/core/peer"
-	"github.com/libp2p/go-libp2p/core/routing"
 
 	"github.com/photon-storage/go-common/testing/require"
-	"github.com/photon-storage/go-gw3/common/crypto"
 	"github.com/photon-storage/go-gw3/common/http"
 	rcpinner "github.com/photon-storage/go-rc-pinner"
+
+	"github.com/photon-storage/falcon/node/com"
 )
 
 var rand = util.NewTimeSeededRand()
@@ -52,14 +44,15 @@ func TestPinnedCount(t *testing.T) {
 	dserv := mdag.NewDAGService(bserv)
 	rcp, err := rcpinner.New(ctx, dstore, dserv)
 	require.NoError(t, err)
-	pinner := &wrappedPinner{
-		pinner: rcp,
+	pinner := &com.WrappedPinner{
+		Pinner: rcp,
 	}
 
-	h := newExtendedHandlers(
+	h := New(
 		&core.IpfsNode{
 			Pinning: pinner,
 		},
+		nil,
 		nil,
 		nil,
 	)
@@ -81,7 +74,7 @@ func TestPinnedCount(t *testing.T) {
 	)
 	require.NoError(t, err)
 	w := httptest.NewRecorder()
-	h.pinnedCount()(w, r)
+	h.PinnedCount()(w, r)
 	require.Equal(t, gohttp.StatusOK, w.Code)
 	var res PinnedCountResult
 	decodeResp(t, w, &res)
@@ -99,7 +92,7 @@ func TestPinnedCount(t *testing.T) {
 	)
 	require.NoError(t, err)
 	w = httptest.NewRecorder()
-	h.pinnedCount()(w, r)
+	h.PinnedCount()(w, r)
 	require.Equal(t, gohttp.StatusOK, w.Code)
 	decodeResp(t, w, &res)
 	require.Equal(t, 0, res.Count)
@@ -118,7 +111,7 @@ func TestPinnedCount(t *testing.T) {
 	)
 	require.NoError(t, err)
 	w = httptest.NewRecorder()
-	h.pinnedCount()(w, r)
+	h.PinnedCount()(w, r)
 	require.Equal(t, gohttp.StatusOK, w.Code)
 	decodeResp(t, w, &res)
 	require.Equal(t, 3, res.Count)
@@ -134,76 +127,9 @@ func TestPinnedCount(t *testing.T) {
 	)
 	require.NoError(t, err)
 	w = httptest.NewRecorder()
-	h.pinnedCount()(w, r)
+	h.PinnedCount()(w, r)
 	require.Equal(t, gohttp.StatusBadRequest, w.Code)
 	decodeResp(t, w, &res)
 	require.Equal(t, -1, res.Count)
 	require.Equal(t, "invalid CID", res.Message)
-}
-
-type mockRouting struct {
-	ir.Composer
-}
-
-func newMockRouting() *mockRouting {
-	return &mockRouting{
-		ir.Composer{},
-	}
-}
-
-func (m *mockRouting) PutValue(ctx context.Context, key string, val []byte, opts ...routing.Option) error {
-	return nil
-}
-
-func TestNameBroadcast(t *testing.T) {
-	sk := crypto.PregenEd25519(0)
-	pk := sk.GetPublic()
-	peerID, err := peer.IDFromPublicKey(pk)
-	require.NoError(t, err)
-	k := peerID.String()
-	eol := time.Now().Add(5 * time.Minute)
-	entry, err := ipns.Create(
-		sk,
-		[]byte("Qme1knMqwt1hKZbc1BmQFmnm9f36nyQGwXxPGVpVJ9rMK5"),
-		1,
-		eol,
-		0,
-	)
-	require.NoError(t, err)
-	require.NoError(t, ipns.EmbedPublicKey(pk, entry))
-	data, err := proto.Marshal(entry)
-	require.NoError(t, err)
-	v := base64.URLEncoding.EncodeToString(data)
-
-	h := newExtendedHandlers(
-		&core.IpfsNode{
-			Routing: newMockRouting(),
-		},
-		nil,
-		nil,
-	)
-
-	r, err := gohttp.NewRequest(
-		gohttp.MethodPost,
-		"/api/v0/name/broadcast",
-		nil,
-	)
-	require.NoError(t, err)
-	query := r.URL.Query()
-	query.Set(http.ParamIPFSKey, k)
-	query.Set(http.ParamIPFSArg, v)
-	r.URL.RawQuery = query.Encode()
-
-	w := httptest.NewRecorder()
-	h.nameBroadcast()(w, r)
-	require.Equal(t, gohttp.StatusOK, w.Code)
-	var res NameBroadcastResult
-	decodeResp(t, w, &res)
-	require.Equal(t, "ok", res.Message)
-}
-
-func decodeResp(t *testing.T, w *httptest.ResponseRecorder, v interface{}) {
-	enc, err := ioutil.ReadAll(w.Body)
-	require.NoError(t, err)
-	require.NoError(t, json.Unmarshal(enc, v))
 }

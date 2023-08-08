@@ -5,11 +5,13 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/ipfs/kubo/config"
+	kuboconfig "github.com/ipfs/kubo/config"
 	"github.com/ipfs/kubo/repo"
 	"github.com/libp2p/go-libp2p/core/peer"
 
 	"github.com/photon-storage/go-common/log"
+
+	"github.com/photon-storage/falcon/node/config"
 )
 
 func overrideIPFSConfig(repo repo.Repo) error {
@@ -18,7 +20,7 @@ func overrideIPFSConfig(repo repo.Repo) error {
 		return err
 	}
 
-	falconCfg := Cfg()
+	falconCfg := config.Get()
 	modified := false
 
 	// Resource Manager
@@ -46,7 +48,7 @@ func overrideIPFSConfig(repo repo.Repo) error {
 	if swarmRcMgrChanged {
 		setFlag(
 			&rcfg.Swarm.ResourceMgr.Enabled,
-			config.True,
+			kuboconfig.True,
 			&modified,
 		)
 	}
@@ -83,15 +85,15 @@ func overrideIPFSConfig(repo repo.Repo) error {
 	if swarmConnMgrChanged {
 		setOptString(
 			&rcfg.Swarm.ConnMgr.Type,
-			config.DefaultConnMgrType,
+			kuboconfig.DefaultConnMgrType,
 			&modified,
 		)
 	}
 
 	// Relay Client
-	relayCli := config.True
+	relayCli := kuboconfig.True
 	if falconCfg.IPFSConfig.DisableRelayClient {
-		relayCli = config.False
+		relayCli = kuboconfig.False
 	}
 	setFlag(
 		&rcfg.Swarm.RelayClient.Enabled,
@@ -159,7 +161,7 @@ func overrideIPFSConfig(repo repo.Repo) error {
 	// Force IPNS pubsub
 	setFlag(
 		&rcfg.Ipns.UsePubsub,
-		config.False,
+		kuboconfig.False,
 		&modified,
 	)
 
@@ -189,41 +191,41 @@ func overrideIPFSConfig(repo repo.Repo) error {
 }
 
 func setOptString(
-	ptr **config.OptionalString,
+	ptr **kuboconfig.OptionalString,
 	val string,
 	modified *bool,
 ) {
 	if *ptr == nil || (*ptr).String() != val {
-		*ptr = config.NewOptionalString(val)
+		*ptr = kuboconfig.NewOptionalString(val)
 		*modified = true
 	}
 }
 
 func setOptInt(
-	ptr **config.OptionalInteger,
+	ptr **kuboconfig.OptionalInteger,
 	val int64,
 	modified *bool,
 ) {
 	if *ptr == nil || (*ptr).String() != fmt.Sprintf("%d", val) {
-		*ptr = config.NewOptionalInteger(val)
+		*ptr = kuboconfig.NewOptionalInteger(val)
 		*modified = true
 	}
 }
 
 func setOptDuration(
-	ptr **config.OptionalDuration,
+	ptr **kuboconfig.OptionalDuration,
 	val time.Duration,
 	modified *bool,
 ) {
 	if *ptr == nil || (*ptr).String() != val.String() {
-		*ptr = config.NewOptionalDuration(val)
+		*ptr = kuboconfig.NewOptionalDuration(val)
 		*modified = true
 	}
 }
 
 func setFlag(
-	ptr *config.Flag,
-	val config.Flag,
+	ptr *kuboconfig.Flag,
+	val kuboconfig.Flag,
 	modified *bool,
 ) {
 	if *ptr != val {

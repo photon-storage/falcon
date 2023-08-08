@@ -10,11 +10,10 @@ import (
 
 	coreiface "github.com/ipfs/boxo/coreiface"
 	options "github.com/ipfs/boxo/coreiface/options"
-
 	"github.com/ipfs/boxo/gateway"
 	cmdshttp "github.com/ipfs/go-ipfs-cmds/http"
 	oldcmds "github.com/ipfs/kubo/commands"
-	config "github.com/ipfs/kubo/config"
+	kuboconfig "github.com/ipfs/kubo/config"
 	"github.com/ipfs/kubo/core"
 	corecommands "github.com/ipfs/kubo/core/commands"
 	"github.com/ipfs/kubo/core/coreapi"
@@ -23,6 +22,9 @@ import (
 
 	"github.com/photon-storage/go-common/log"
 	"github.com/photon-storage/go-gw3/common/http"
+
+	"github.com/photon-storage/falcon/node/config"
+	"github.com/photon-storage/falcon/node/handlers"
 )
 
 const (
@@ -42,7 +44,7 @@ func initFalconGateway(
 	cctx *oldcmds.Context,
 	nd *core.IpfsNode,
 ) (<-chan error, error) {
-	cfg := Cfg()
+	cfg := config.Get()
 	certFile := ""
 	keyFile := ""
 	if cfg.RequireTLSCert() {
@@ -132,7 +134,7 @@ func initFalconGateway(
 
 func apiOption(
 	cctx *oldcmds.Context,
-	rcfg *config.Config,
+	rcfg *kuboconfig.Config,
 	coreapi coreiface.CoreAPI,
 	auth *authHandler,
 	report *monitorHandler,
@@ -142,21 +144,24 @@ func apiOption(
 		lis net.Listener,
 		mux *gohttp.ServeMux,
 	) (*gohttp.ServeMux, error) {
-		extHandlers := newExtendedHandlers(nd, rcfg, coreapi)
+		apiHandlers := buildApiHandler(*cctx, lis)
+		extHandlers := handlers.New(nd, rcfg, coreapi, apiHandlers)
 
-		mux.Handle("/status", extHandlers.status())
-		mux.Handle("/status/", extHandlers.status())
+		mux.Handle("/status", extHandlers.Status())
+		mux.Handle("/status/", extHandlers.Status())
 
 		mux.Handle(apiPrefix+"/", auth.wrap(
-			report.wrap(buildApiHandler(*cctx, lis)),
+			report.wrap(apiHandlers),
 		))
 		// Custom /api/v0 APIs.
 		mux.Handle(apiPrefix+"/pin/count", auth.wrap(
-			report.wrap(extHandlers.pinnedCount()),
+			report.wrap(extHandlers.PinnedCount()),
 		))
-
 		mux.Handle(apiPrefix+"/name/broadcast", auth.wrap(
-			report.wrap(extHandlers.nameBroadcast()),
+			report.wrap(extHandlers.NameBroadcast()),
+		))
+		mux.Handle(apiPrefix+"/dag/import", auth.wrap(
+			report.wrap(extHandlers.DagImport()),
 		))
 
 		return mux, nil
@@ -165,7 +170,7 @@ func apiOption(
 
 func hostnameOption(
 	cctx *oldcmds.Context,
-	rcfg *config.Config,
+	rcfg *kuboconfig.Config,
 	gwCfg gateway.Config,
 	auth *authHandler,
 	report *monitorHandler,
@@ -318,7 +323,7 @@ func patchCORSVars(cfg *cmdshttp.ServerConfig, addr net.Addr) {
 	cfg.SetAllowedOrigins(newOrigins...)
 }
 
-func publicGatewayConfig(rcfg *config.Config) gateway.Config {
+func publicGatewayConfig(rcfg *kuboconfig.Config) gateway.Config {
 	publicGws := map[string]*gateway.PublicGateway{
 		"localhost": {
 			Paths:                 []string{"/ipfs/", "/ipns/"},
@@ -332,7 +337,7 @@ func publicGatewayConfig(rcfg *config.Config) gateway.Config {
 			UseSubdomains:         false,
 			DeserializedResponses: true,
 		},
-		Cfg().GW3Hostname: {
+		config.Get().GW3Hostname: {
 			Paths:                 []string{"/ipfs/", "/ipns/"},
 			NoDNSLink:             rcfg.Gateway.NoDNSLink,
 			UseSubdomains:         true,
@@ -351,7 +356,7 @@ func publicGatewayConfig(rcfg *config.Config) gateway.Config {
 			NoDNSLink:     gw.NoDNSLink,
 			UseSubdomains: gw.UseSubdomains,
 			InlineDNSLink: gw.InlineDNSLink.WithDefault(
-				config.DefaultInlineDNSLink,
+				kuboconfig.DefaultInlineDNSLink,
 			),
 		}
 	}

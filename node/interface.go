@@ -13,6 +13,9 @@ import (
 	"go.uber.org/fx"
 
 	"github.com/photon-storage/go-common/log"
+
+	"github.com/photon-storage/falcon/node/com"
+	"github.com/photon-storage/falcon/node/config"
 )
 
 // This file defines interfaces for hooking Falcon logic into the
@@ -122,7 +125,7 @@ func InitFalconBeforeNodeConstruction(
 		return err
 	}
 
-	if err := initConfig(cfgPath); err != nil {
+	if err := config.Init(cfgPath); err != nil {
 		return err
 	}
 
@@ -140,7 +143,7 @@ func InitFalconBeforeNodeConstruction(
 		fx.Provide(corenode.Dag),
 		fx.Provide(corenode.FetcherConfig),
 		fx.Provide(corenode.PathResolverConfig),
-		fx.Provide(RcPinning),
+		fx.Provide(com.RcPinning),
 		fx.Provide(corenode.Files),
 	)
 
@@ -158,11 +161,11 @@ func InitFalconAfterNodeConstruction(
 
 	log.Info(fmt.Sprintf("Launching falcon %v ...", emoji.Rocket))
 	// Sanity check.
-	if p := getRcPinner(nd.Pinning); p == nil {
+	if p := com.GetRcPinner(nd.Pinning); p == nil {
 		return nil, ErrRcPinnerMissing
 	}
 
-	if Cfg().EnableNodeRegistration() {
+	if config.Get().EnableNodeRegistration() {
 		if err := registerFalconNode(req.Context, nd); err != nil {
 			return nil, err
 		}

@@ -5,7 +5,11 @@ import (
 	"fmt"
 	"time"
 
+	core "github.com/ipfs/kubo/core"
+
 	"github.com/photon-storage/go-common/metrics"
+
+	"github.com/photon-storage/falcon/node/com"
 )
 
 // initMetrics register the metrics to prometheus.
@@ -29,13 +33,35 @@ func initMetrics(ctx context.Context, port int) {
 	metrics.NewCounter("request_log_err_total")
 
 	// Node metrics.
-	metrics.NewCounter("rc_pinner_pin_call_total")
-	metrics.NewCounter("rc_pinner_pin_err_total")
-	metrics.NewCounter("rc_pinner_unpin_call_total")
-	metrics.NewCounter("rc_pinner_unpin_err_total")
-	metrics.NewCounter("rc_pinner_recursive_keys_call_total")
+	com.RegisterPinnerMetrics()
 	metrics.NewGauge("pinned_count_total")
 	metrics.NewGauge("connected_peers_total")
 
 	metrics.GaugeSet("restart_at_seconds", float64(time.Now().Unix()))
+}
+
+func updateNodeMetrics(
+	ctx context.Context,
+	nd *core.IpfsNode,
+) {
+	ticker := time.NewTicker(15 * time.Second)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+
+		case <-ticker.C:
+			connected := nd.PeerHost.Network().Peers()
+			metrics.GaugeSet(
+				"connected_peers_total",
+				float64(len(connected)),
+			)
+
+			metrics.GaugeSet(
+				"pinned_count_total",
+				float64(com.GetRcPinner(nd.Pinning).TotalPinnedCount()),
+			)
+		}
+	}
 }
