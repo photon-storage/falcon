@@ -136,7 +136,8 @@ func (p *WrappedPinner) CheckIfPinned(
 func (p *WrappedPinner) PinWithMode(
 	ctx context.Context,
 	cid cid.Cid,
-	mode pin.Mode) error {
+	mode pin.Mode,
+) error {
 	return p.Pinner.PinWithMode(ctx, cid, mode)
 }
 
@@ -167,18 +168,9 @@ func (p *WrappedPinner) InternalPins(
 func (p *WrappedPinner) PinnedCount(
 	ctx context.Context,
 	c cid.Cid,
+	recursive bool,
 ) (uint16, error) {
-	rc, err := p.Pinner.PinnedCount(ctx, c, true)
-	if err != nil {
-		return 0, err
-	}
-
-	dc, err := p.Pinner.PinnedCount(ctx, c, false)
-	if err != nil {
-		return 0, err
-	}
-
-	return rc + dc, nil
+	return p.Pinner.PinnedCount(ctx, c, recursive)
 }
 
 func (p *WrappedPinner) TotalPinnedCount() int64 {

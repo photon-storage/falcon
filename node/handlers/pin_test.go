@@ -66,7 +66,7 @@ func TestPinnedCount(t *testing.T) {
 	r, err := gohttp.NewRequest(
 		gohttp.MethodGet,
 		fmt.Sprintf(
-			"/api/v0/pin/count?%s=%s",
+			"/api/v0/pin/count?%s=%s&recursive=1",
 			http.ParamIPFSArg,
 			nd0.Cid().String(),
 		),
@@ -79,12 +79,42 @@ func TestPinnedCount(t *testing.T) {
 	var res PinnedCountResult
 	decodeResp(t, w, &res)
 	require.Equal(t, 1, res.Count)
+	r, err = gohttp.NewRequest(
+		gohttp.MethodGet,
+		fmt.Sprintf(
+			"/api/v0/pin/count?%s=%s&recursive=0",
+			http.ParamIPFSArg,
+			nd0.Cid().String(),
+		),
+		nil,
+	)
+	require.NoError(t, err)
+	w = httptest.NewRecorder()
+	h.PinnedCount()(w, r)
+	require.Equal(t, gohttp.StatusOK, w.Code)
+	decodeResp(t, w, &res)
+	require.Equal(t, 0, res.Count)
 
 	// nd1 not pinned
 	r, err = gohttp.NewRequest(
 		gohttp.MethodGet,
 		fmt.Sprintf(
-			"/api/v0/pin/count?%s=%s",
+			"/api/v0/pin/count?%s=%s&recursive=1",
+			http.ParamIPFSArg,
+			nd1.Cid().String(),
+		),
+		nil,
+	)
+	require.NoError(t, err)
+	w = httptest.NewRecorder()
+	h.PinnedCount()(w, r)
+	require.Equal(t, gohttp.StatusOK, w.Code)
+	decodeResp(t, w, &res)
+	require.Equal(t, 0, res.Count)
+	r, err = gohttp.NewRequest(
+		gohttp.MethodGet,
+		fmt.Sprintf(
+			"/api/v0/pin/count?%s=%s&recursive=0",
 			http.ParamIPFSArg,
 			nd1.Cid().String(),
 		),
@@ -100,10 +130,11 @@ func TestPinnedCount(t *testing.T) {
 	// nd0 count = 3
 	require.NoError(t, pinner.Pin(ctx, nd0, true))
 	require.NoError(t, pinner.Pin(ctx, nd0, true))
+	require.NoError(t, pinner.Pin(ctx, nd0, false))
 	r, err = gohttp.NewRequest(
 		gohttp.MethodGet,
 		fmt.Sprintf(
-			"/api/v0/pin/count?%s=%s",
+			"/api/v0/pin/count?%s=%s&recursive=1",
 			http.ParamIPFSArg,
 			nd0.Cid().String(),
 		),
@@ -115,6 +146,21 @@ func TestPinnedCount(t *testing.T) {
 	require.Equal(t, gohttp.StatusOK, w.Code)
 	decodeResp(t, w, &res)
 	require.Equal(t, 3, res.Count)
+	r, err = gohttp.NewRequest(
+		gohttp.MethodGet,
+		fmt.Sprintf(
+			"/api/v0/pin/count?%s=%s&recursive=0",
+			http.ParamIPFSArg,
+			nd0.Cid().String(),
+		),
+		nil,
+	)
+	require.NoError(t, err)
+	w = httptest.NewRecorder()
+	h.PinnedCount()(w, r)
+	require.Equal(t, gohttp.StatusOK, w.Code)
+	decodeResp(t, w, &res)
+	require.Equal(t, 1, res.Count)
 
 	// invalid cid
 	r, err = gohttp.NewRequest(
