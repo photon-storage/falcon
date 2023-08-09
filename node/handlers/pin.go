@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	gohttp "net/http"
+	"strings"
 
 	"github.com/ipfs/go-cid"
 
@@ -45,7 +46,12 @@ func (h *ExtendedHandlers) PinnedCount() gohttp.HandlerFunc {
 			return
 		}
 
-		count, err := pinner.PinnedCount(r.Context(), c)
+		recursive := strings.ToLower(query.Get(http.ParamIPFSRecursive))
+		count, err := pinner.PinnedCount(
+			r.Context(),
+			c,
+			recursive == "1" || recursive == "true",
+		)
 		if err != nil {
 			writeJSON(
 				w,
