@@ -46,12 +46,24 @@ func (h *ExtendedHandlers) PinnedCount() gohttp.HandlerFunc {
 			return
 		}
 
-		recursive := strings.ToLower(query.Get(http.ParamIPFSRecursive))
-		count, err := pinner.PinnedCount(
-			r.Context(),
-			c,
-			recursive == "1" || recursive == "true",
-		)
+		recursiveStr := strings.ToLower(query.Get(http.ParamIPFSRecursive))
+		recursive := false
+		if recursiveStr == "1" || recursiveStr == "true" {
+			recursive = true
+		} else if recursiveStr == "0" || recursiveStr == "false" {
+			recursive = false
+		} else {
+			writeJSON(
+				w,
+				gohttp.StatusBadRequest,
+				&PinnedCountResult{
+					Count:   -1,
+					Message: "invalid value for recursive flag",
+				},
+			)
+			return
+		}
+		count, err := pinner.PinnedCount(r.Context(), c, recursive)
 		if err != nil {
 			writeJSON(
 				w,
