@@ -9,6 +9,7 @@ import (
 	gohttp "net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	coreiface "github.com/ipfs/boxo/coreiface"
@@ -169,11 +170,17 @@ func (m *monitor) run(ctx context.Context, cancel context.CancelFunc) {
 		if v != "" {
 			k, err := cid.Decode(v)
 			if err == nil {
+				recursive := strings.ToLower(m.query.Get(http.ParamIPFSRecursive))
 				// When we get here, the ctx has already been cancelled.
 				// Use a background ctx with 600 seconds timeout.
 				// Since the DAG is already in local store, should be fast?
 				ctx, _ = context.WithTimeout(context.Background(), 600*time.Second)
-				pinnedBytes, _ = calculateCidSize(ctx, m.coreapi, k)
+				pinnedBytes, _ = calculateCidSize(
+					ctx,
+					m.coreapi,
+					k,
+					recursive == "1" || recursive == "true",
+				)
 			}
 		}
 		pinnedBytes *= wt
@@ -264,11 +271,15 @@ func calculateCidSize(
 	ctx context.Context,
 	coreapi coreiface.CoreAPI,
 	k cid.Cid,
+	recursive bool,
 ) (int, error) {
 	nodeGetter := mdag.NewSession(ctx, coreapi.Dag())
 	root, err := nodeGetter.Get(ctx, k)
 	if err != nil {
 		return 0, err
+	}
+	if !recursive {
+		return len(root.RawData()), nil
 	}
 
 	sz := 0
