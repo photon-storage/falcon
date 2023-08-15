@@ -9,11 +9,9 @@ import (
 	gohttp "net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	coreiface "github.com/ipfs/boxo/coreiface"
-	"github.com/ipfs/go-cid"
 	"go.uber.org/atomic"
 
 	"github.com/photon-storage/falcon/node/config"
@@ -170,35 +168,6 @@ func (m *monitor) run(ctx context.Context, cancel context.CancelFunc) {
 		}
 	}
 
-	pinnedBytes := 0
-	if wt := uriToReportCidSize[m.uri]; wt == -1 {
-		// NOTE(max): this is hacky. Once rm is moved to handlers,
-		// size should be avaliable from dagStats.
-		// TODO(kmax): handle error with retry, probably not gonna help?
-		v := m.query.Get(http.ParamIPFSArg)
-		if v != "" {
-			k, err := cid.Decode(v)
-			if err == nil {
-				recursive := strings.ToLower(m.query.Get(http.ParamIPFSRecursive))
-				// When we get here, the ctx has already been cancelled.
-				// Use a background ctx with 600 seconds timeout.
-				// Since the DAG is already in local store, should be fast?
-				ctx, _ = context.WithTimeout(context.Background(), 600*time.Second)
-				ds := handlers.NewDagStats()
-				handlers.CalculateDagStats(
-					ctx,
-					m.coreapi,
-					k,
-					recursive == "1" || recursive == "true",
-					ds,
-				)
-				pinnedBytes = -int(ds.TotalSize.Load())
-			}
-		}
-	} else if wt == 1 {
-		pinnedBytes = int(m.dagStats.TotalSize.Load())
-	}
-
 	if err := sendLog(
 		m.method,
 		m.host,
@@ -206,7 +175,7 @@ func (m *monitor) run(ctx context.Context, cancel context.CancelFunc) {
 		m.query,
 		m.httpIngr.size()+int(m.p2pIngr.Load()-m.p2pIngrReported.Load()),
 		m.httpEgr.size(),
-		pinnedBytes,
+		int(m.dagStats.TotalSize.Load())*uriToReportCidSize[m.uri],
 	); err != nil {
 		metrics.CounterInc("request_log_err_total")
 		log.Error("Error making log request", "error", err)
