@@ -154,6 +154,9 @@ func apiOption(
 			report.wrap(apiHandlers),
 		))
 		// Custom /api/v0 APIs.
+		mux.Handle(apiPrefix+"/pin/add", auth.wrap(
+			report.wrap(extHandlers.PinAdd()),
+		))
 		mux.Handle(apiPrefix+"/pin/count", auth.wrap(
 			report.wrap(extHandlers.PinnedCount()),
 		))

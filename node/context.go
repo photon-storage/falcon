@@ -7,6 +7,8 @@ import (
 
 	"github.com/photon-storage/go-gw3/common/http"
 	rcpinner "github.com/photon-storage/go-rc-pinner"
+
+	"github.com/photon-storage/falcon/node/handlers"
 )
 
 const (
@@ -63,6 +65,16 @@ func GetNoReportFromCtx(ctx context.Context) bool {
 	return noreport
 }
 
-func SetDagSizeFromCtx(ctx context.Context, v *atomic.Uint64) context.Context {
+func SetFetchSizeFromCtx(
+	ctx context.Context,
+	v *atomic.Uint64,
+) context.Context {
 	return context.WithValue(ctx, rcpinner.DagSizeContextKey, v)
+}
+
+func SetDagStatFromCtx(
+	ctx context.Context,
+	v *handlers.DagStats,
+) context.Context {
+	return context.WithValue(ctx, handlers.DagStatsCtxKey, v)
 }

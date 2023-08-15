@@ -54,6 +54,10 @@ func (w *responseWriter) Write(data []byte) (int, error) {
 		}
 	}
 
+	if len(data) == 0 {
+		return 0, nil
+	}
+
 	return w.w.Write(data)
 }
 

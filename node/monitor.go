@@ -13,12 +13,11 @@ import (
 	"time"
 
 	coreiface "github.com/ipfs/boxo/coreiface"
-	mdag "github.com/ipfs/boxo/ipld/merkledag"
-	"github.com/ipfs/boxo/ipld/merkledag/traverse"
 	"github.com/ipfs/go-cid"
 	"go.uber.org/atomic"
 
 	"github.com/photon-storage/falcon/node/config"
+	"github.com/photon-storage/falcon/node/handlers"
 	"github.com/photon-storage/go-common/log"
 	"github.com/photon-storage/go-common/metrics"
 	"github.com/photon-storage/go-gw3/common/auth"
@@ -60,12 +59,10 @@ func (m *monitorHandler) wrap(next gohttp.Handler) gohttp.Handler {
 		defer cancel()
 
 		r = r.WithContext(SetNoReportFromCtx(ctx))
-
 		p2pIngr := atomic.NewUint64(0)
-		if auth.CanonicalizeURI(r.URL.Path) == "/api/v0/pin/add" {
-			// Enable dag size tracking for pin add.
-			r = r.WithContext(SetDagSizeFromCtx(ctx, p2pIngr))
-		}
+		r = r.WithContext(SetFetchSizeFromCtx(ctx, p2pIngr))
+		dagStats := handlers.NewDagStats()
+		r = r.WithContext(SetDagStatFromCtx(ctx, dagStats))
 
 		maxSize, err := extractSizeFromArgs(r)
 		if err != nil {
@@ -82,8 +79,15 @@ func (m *monitorHandler) wrap(next gohttp.Handler) gohttp.Handler {
 		r.Body = httpIngr
 		w = httpEgr
 
-		mon := newMonitor(m.coreapi, r, httpIngr, httpEgr, p2pIngr, maxSize)
-		go mon.run(ctx, cancel)
+		go newMonitor(
+			m.coreapi,
+			r,
+			httpIngr,
+			httpEgr,
+			p2pIngr,
+			maxSize,
+			dagStats,
+		).run(ctx, cancel)
 
 		next.ServeHTTP(w, r)
 	})
@@ -96,6 +100,7 @@ type monitor struct {
 	p2pIngr         *atomic.Uint64
 	p2pIngrReported *atomic.Uint64
 	maxSize         int
+	dagStats        *handlers.DagStats
 	method          string
 	host            string
 	uri             string
@@ -109,6 +114,7 @@ func newMonitor(
 	httpEgr *egressCounter,
 	p2pIngr *atomic.Uint64,
 	maxSize int,
+	dagStats *handlers.DagStats,
 ) *monitor {
 	return &monitor{
 		coreapi:         coreapi,
@@ -117,6 +123,7 @@ func newMonitor(
 		p2pIngr:         p2pIngr,
 		p2pIngrReported: atomic.NewUint64(0),
 		maxSize:         maxSize,
+		dagStats:        dagStats,
 		method:          req.Method,
 		host:            req.Host,
 		uri:             auth.CanonicalizeURI(req.URL.Path),
@@ -164,7 +171,9 @@ func (m *monitor) run(ctx context.Context, cancel context.CancelFunc) {
 	}
 
 	pinnedBytes := 0
-	if wt := uriToReportCidSize[m.uri]; wt != 0 {
+	if wt := uriToReportCidSize[m.uri]; wt == -1 {
+		// NOTE(max): this is hacky. Once rm is moved to handlers,
+		// size should be avaliable from dagStats.
 		// TODO(kmax): handle error with retry, probably not gonna help?
 		v := m.query.Get(http.ParamIPFSArg)
 		if v != "" {
@@ -175,15 +184,19 @@ func (m *monitor) run(ctx context.Context, cancel context.CancelFunc) {
 				// Use a background ctx with 600 seconds timeout.
 				// Since the DAG is already in local store, should be fast?
 				ctx, _ = context.WithTimeout(context.Background(), 600*time.Second)
-				pinnedBytes, _ = calculateCidSize(
+				ds := handlers.NewDagStats()
+				handlers.CalculateDagStats(
 					ctx,
 					m.coreapi,
 					k,
 					recursive == "1" || recursive == "true",
+					ds,
 				)
+				pinnedBytes = -int(ds.TotalSize.Load())
 			}
 		}
-		pinnedBytes *= wt
+	} else if wt == 1 {
+		pinnedBytes = int(m.dagStats.TotalSize.Load())
 	}
 
 	if err := sendLog(
@@ -265,38 +278,6 @@ func sendLog(
 	}
 
 	return nil
-}
-
-func calculateCidSize(
-	ctx context.Context,
-	coreapi coreiface.CoreAPI,
-	k cid.Cid,
-	recursive bool,
-) (int, error) {
-	nodeGetter := mdag.NewSession(ctx, coreapi.Dag())
-	root, err := nodeGetter.Get(ctx, k)
-	if err != nil {
-		return 0, err
-	}
-	if !recursive {
-		return len(root.RawData()), nil
-	}
-
-	sz := 0
-	if err := traverse.Traverse(root, traverse.Options{
-		DAG:   nodeGetter,
-		Order: traverse.DFSPre,
-		Func: func(current traverse.State) error {
-			sz += len(current.Node.RawData())
-			return nil
-		},
-		ErrFunc:        nil,
-		SkipDuplicates: true,
-	}); err != nil {
-		return 0, err
-	}
-
-	return sz, nil
 }
 
 func extractSizeFromArgs(r *gohttp.Request) (int, error) {
