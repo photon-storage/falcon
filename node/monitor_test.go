@@ -18,6 +18,7 @@ import (
 	"github.com/photon-storage/go-gw3/common/reporting"
 
 	"github.com/photon-storage/falcon/node/config"
+	"github.com/photon-storage/falcon/node/handlers"
 )
 
 type mockHttpClient struct {
@@ -67,7 +68,15 @@ func TestSendLog(t *testing.T) {
 	httpIngr.sz = 100
 	httpEgr := newEgressCounter(nil)
 	httpEgr.sz = 8192
-	mon := newMonitor(nil, req, httpIngr, httpEgr, atomic.NewUint64(100), maxSize)
+	mon := newMonitor(
+		nil,
+		req,
+		httpIngr,
+		httpEgr,
+		atomic.NewUint64(100),
+		maxSize,
+		handlers.NewDagStats(),
+	)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

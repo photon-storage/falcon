@@ -19,6 +19,7 @@ import (
 	"github.com/photon-storage/go-gw3/common/http"
 
 	"github.com/photon-storage/falcon/node/consts"
+	"github.com/photon-storage/falcon/node/handlers"
 )
 
 var checks = []*check{
@@ -492,42 +493,39 @@ var checks = []*check{
 
 			for iter := 0; iter < 2; iter++ {
 				logStep("Pin data, iter = %v", iter)
-				done := false
-				for !done {
-					select {
-					case <-ctx.Done():
-						return ctx.Err()
-					default:
-						code, header, data, err := gatewayPost(
-							ctx,
-							cfg,
-							fmt.Sprintf("api/v0/pin/add?arg=%s&progress=true", k),
-							nil,
-							nil,
-						)
-						if err := logResp(code, header, data, err); err != nil {
+				select {
+				case <-ctx.Done():
+					return ctx.Err()
+				default:
+					code, header, data, err := gatewayPost(
+						ctx,
+						cfg,
+						fmt.Sprintf("api/v0/pin/add?arg=%s&recursive=true&progress=true", k),
+						nil,
+						nil,
+					)
+					if err := logResp(code, header, data, err); err != nil {
+						return err
+					}
+
+					for _, line := range strings.Split(string(data), "\n") {
+						line = strings.TrimSpace(line)
+						if len(line) == 0 {
+							continue
+						}
+
+						res := handlers.PinAddResult{}
+						if err := json.Unmarshal(
+							[]byte(line),
+							&res,
+						); err != nil {
 							return err
 						}
 
-						for _, line := range strings.Split(string(data), "\n") {
-							line = strings.TrimSpace(line)
-							if len(line) == 0 {
-								continue
-							}
-
-							res := pin.AddPinOutput{}
-							if err := json.Unmarshal(
-								[]byte(line),
-								&res,
-							); err != nil {
-								return err
-							}
-
-							if len(res.Pins) > 0 {
-								logStep("Pin complete")
-								done = true
-							}
-							logStep("Pin in progress %v", res.Progress)
+						if !res.Done {
+							logStep("Pin in progress %v", res.ProcessedNumBlocks)
+						} else {
+							logStep("Pin complete, total size = %v", res.TotalSize)
 						}
 					}
 				}
@@ -564,51 +562,43 @@ var checks = []*check{
 			k := "QmP8jTG1m9GSDJLCbeWhVSVgEzCPPwXRdCRuJtQ5Tz9Kc9"
 
 			logStep("Pin external CID")
-			done := false
-			for !done {
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				default:
-					code, header, data, err := gatewayPost(
-						ctx,
-						cfg,
-						fmt.Sprintf(
-							"api/v0/pin/add?arg=%s&recursive=true&progress=true",
-							k,
-						),
-						nil,
-						nil,
-					)
-					if err := logResp(code, header, data, err); err != nil {
-						return err
-					}
+			code, header, data, err := gatewayPost(
+				ctx,
+				cfg,
+				fmt.Sprintf(
+					"api/v0/pin/add?arg=%s&recursive=true&progress=true",
+					k,
+				),
+				nil,
+				nil,
+			)
+			if err := logResp(code, header, data, err); err != nil {
+				return err
+			}
 
-					for _, line := range strings.Split(string(data), "\n") {
-						line = strings.TrimSpace(line)
-						if len(line) == 0 {
-							continue
-						}
+			for _, line := range strings.Split(string(data), "\n") {
+				line = strings.TrimSpace(line)
+				if len(line) == 0 {
+					continue
+				}
 
-						res := pin.AddPinOutput{}
-						if err := json.Unmarshal(
-							[]byte(line),
-							&res,
-						); err != nil {
-							return err
-						}
+				res := handlers.PinAddResult{}
+				if err := json.Unmarshal(
+					[]byte(line),
+					&res,
+				); err != nil {
+					return err
+				}
 
-						if len(res.Pins) > 0 {
-							logStep("Pin complete")
-							done = true
-						}
-						logStep("Pin in progress %v", res.Progress)
-					}
+				if !res.Done {
+					logStep("Pin in progress %v", res.ProcessedNumBlocks)
+				} else {
+					logStep("Pin complete, total size = %v", res.TotalSize)
 				}
 			}
 
 			logStep("Unpin")
-			code, header, data, err := gatewayPost(
+			code, header, data, err = gatewayPost(
 				ctx,
 				cfg,
 				fmt.Sprintf("api/v0/pin/rm?arg=%s", k),
