@@ -119,6 +119,92 @@ func (h *ExtendedHandlers) PinAdd() gohttp.HandlerFunc {
 	})
 }
 
+type pinRmRespHandler struct {
+	statusCode int
+	api        coreiface.CoreAPI
+	root       cid.Cid
+	recursive  bool
+	dagStats   *DagStats
+}
+
+func (h *pinRmRespHandler) status(statusCode int) {
+	if h.statusCode != 0 {
+		h.statusCode = statusCode
+	}
+}
+
+func (h *pinRmRespHandler) update(
+	ctx context.Context,
+	data []byte,
+) ([]byte, error) {
+	// Only convert responses that we understand.
+	var val pin.PinOutput
+	if err := json.Unmarshal(data, &val); err == nil {
+		ds := h.dagStats
+		if ds == nil {
+			ds = NewDagStats()
+		}
+
+		// Completed.
+		if err := CalculateDagStats(
+			ctx,
+			h.api,
+			h.root,
+			h.recursive,
+			ds,
+		); err != nil {
+			return nil, err
+		}
+
+		return json.Marshal(&PinRmResult{
+			DeduplicatedSize:      ds.DeduplicatedSize.Load(),
+			DeduplicatedNumBlocks: ds.DeduplicatedNumBlocks.Load(),
+			TotalSize:             ds.TotalSize.Load(),
+			TotalNumBlocks:        ds.TotalNumBlocks.Load(),
+		})
+	}
+
+	return data, nil
+}
+
+type PinRmResult struct {
+	DeduplicatedSize      int64  `json:"duplicated_size,omitempty"`
+	DeduplicatedNumBlocks int64  `json:"duplicated_num_blocks,omitempty"`
+	TotalSize             int64  `json:"total_size,omitempty"`
+	TotalNumBlocks        int64  `json:"total_num_blocks,omitempty"`
+	Message               string `json:"message"`
+}
+
+func (h *ExtendedHandlers) PinRm() gohttp.HandlerFunc {
+	return gohttp.HandlerFunc(func(w gohttp.ResponseWriter, r *gohttp.Request) {
+		c, recursive, err := parsePinParams(r)
+		if err != nil {
+			writeJSON(
+				w,
+				gohttp.StatusBadRequest,
+				&PinRmResult{
+					Message: err.Error(),
+				},
+			)
+			return
+		}
+
+		h.apiHandlers.ServeHTTP(
+			newResponseWriter(
+				r.Context(),
+				w,
+				&pinRmRespHandler{
+					api:       h.api,
+					root:      c,
+					recursive: recursive,
+					dagStats:  getDagStatsFromCtx(r.Context()),
+				},
+			),
+			r,
+		)
+	})
+}
+
 type PinnedCountResult struct {
 	Count   int    `json:"count"`
 	Message string `json:"message"`

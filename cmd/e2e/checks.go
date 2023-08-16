@@ -454,13 +454,19 @@ var checks = []*check{
 				code, header, data, err = gatewayPost(
 					ctx,
 					cfg,
-					fmt.Sprintf("api/v0/pin/rm?arg=%s", k),
+					fmt.Sprintf("api/v0/pin/rm?arg=%s&recursive=true", k),
 					nil,
 					nil,
 				)
 				if err := logResp(code, header, data, err); err != nil {
 					return err
 				}
+
+				res := handlers.PinRmResult{}
+				if err := json.Unmarshal(data, &res); err != nil {
+					return err
+				}
+				logStep("Unpin complete, total size = %v", res.TotalSize)
 			}
 
 			return nil
@@ -548,11 +554,21 @@ var checks = []*check{
 			code, header, data, err = gatewayPost(
 				ctx,
 				cfg,
-				fmt.Sprintf("api/v0/pin/rm?arg=%s", k),
+				fmt.Sprintf("api/v0/pin/rm?arg=%s&recursive=true", k),
 				nil,
 				nil,
 			)
-			return logResp(code, header, data, err)
+			if err := logResp(code, header, data, err); err != nil {
+				return err
+			}
+
+			res := handlers.PinRmResult{}
+			if err := json.Unmarshal(data, &res); err != nil {
+				return err
+			}
+			logStep("Unpin complete, total size = %v", res.TotalSize)
+
+			return nil
 		},
 	},
 	// "POST /api/v0/pin" pins and unpins an external CID.
@@ -601,11 +617,21 @@ var checks = []*check{
 			code, header, data, err = gatewayPost(
 				ctx,
 				cfg,
-				fmt.Sprintf("api/v0/pin/rm?arg=%s", k),
+				fmt.Sprintf("api/v0/pin/rm?arg=%s&recursive=true", k),
 				nil,
 				nil,
 			)
-			return logResp(code, header, data, err)
+			if err := logResp(code, header, data, err); err != nil {
+				return err
+			}
+
+			res := handlers.PinRmResult{}
+			if err := json.Unmarshal(data, &res); err != nil {
+				return err
+			}
+			logStep("Unpin complete, total size = %v", res.TotalSize)
+
+			return nil
 		},
 	},
 	// "POST /api/v0/dag/xxxx" DAG operations: put/get/stat/import/export
