@@ -6,6 +6,7 @@ import (
 	"io"
 	gohttp "net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	bs "github.com/ipfs/boxo/blockservice"
@@ -78,6 +79,7 @@ func TestPinnedCount(t *testing.T) {
 	require.Equal(t, gohttp.StatusOK, w.Code)
 	var res PinnedCountResult
 	decodeResp(t, w, &res)
+	require.True(t, res.Success)
 	require.Equal(t, 1, res.Count)
 	r, err = gohttp.NewRequest(
 		gohttp.MethodGet,
@@ -93,6 +95,7 @@ func TestPinnedCount(t *testing.T) {
 	h.PinnedCount()(w, r)
 	require.Equal(t, gohttp.StatusOK, w.Code)
 	decodeResp(t, w, &res)
+	require.True(t, res.Success)
 	require.Equal(t, 0, res.Count)
 
 	// nd1 not pinned
@@ -110,6 +113,7 @@ func TestPinnedCount(t *testing.T) {
 	h.PinnedCount()(w, r)
 	require.Equal(t, gohttp.StatusOK, w.Code)
 	decodeResp(t, w, &res)
+	require.True(t, res.Success)
 	require.Equal(t, 0, res.Count)
 	r, err = gohttp.NewRequest(
 		gohttp.MethodGet,
@@ -125,6 +129,7 @@ func TestPinnedCount(t *testing.T) {
 	h.PinnedCount()(w, r)
 	require.Equal(t, gohttp.StatusOK, w.Code)
 	decodeResp(t, w, &res)
+	require.True(t, res.Success)
 	require.Equal(t, 0, res.Count)
 
 	// nd0 count = 3
@@ -145,6 +150,7 @@ func TestPinnedCount(t *testing.T) {
 	h.PinnedCount()(w, r)
 	require.Equal(t, gohttp.StatusOK, w.Code)
 	decodeResp(t, w, &res)
+	require.True(t, res.Success)
 	require.Equal(t, 3, res.Count)
 	r, err = gohttp.NewRequest(
 		gohttp.MethodGet,
@@ -160,6 +166,7 @@ func TestPinnedCount(t *testing.T) {
 	h.PinnedCount()(w, r)
 	require.Equal(t, gohttp.StatusOK, w.Code)
 	decodeResp(t, w, &res)
+	require.True(t, res.Success)
 	require.Equal(t, 1, res.Count)
 
 	// invalid cid
@@ -176,6 +183,7 @@ func TestPinnedCount(t *testing.T) {
 	h.PinnedCount()(w, r)
 	require.Equal(t, gohttp.StatusBadRequest, w.Code)
 	decodeResp(t, w, &res)
-	require.Equal(t, -1, res.Count)
-	require.Equal(t, "invalid CID", res.Message)
+	require.False(t, res.Success)
+	require.Equal(t, 0, res.Count)
+	require.True(t, strings.Contains(res.Message, "invalid CID"))
 }

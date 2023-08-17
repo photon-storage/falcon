@@ -528,7 +528,7 @@ var checks = []*check{
 							return err
 						}
 
-						if !res.Done {
+						if !res.InProgress {
 							logStep("Pin in progress %v", res.ProcessedNumBlocks)
 						} else {
 							logStep("Pin complete, total size = %v", res.TotalSize)
@@ -606,7 +606,7 @@ var checks = []*check{
 					return err
 				}
 
-				if !res.Done {
+				if !res.InProgress {
 					logStep("Pin in progress %v", res.ProcessedNumBlocks)
 				} else {
 					logStep("Pin complete, total size = %v", res.TotalSize)
