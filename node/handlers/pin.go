@@ -231,7 +231,6 @@ func (h *ExtendedHandlers) PinnedCount() gohttp.HandlerFunc {
 	return gohttp.HandlerFunc(func(w gohttp.ResponseWriter, r *gohttp.Request) {
 		c, recursive, err := parsePinParams(r)
 		if err != nil {
-			fmt.Printf("here?????\n")
 			writeJSON(
 				w,
 				gohttp.StatusBadRequest,
