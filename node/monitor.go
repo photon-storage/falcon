@@ -56,11 +56,12 @@ func (m *monitorHandler) wrap(next gohttp.Handler) gohttp.Handler {
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
-		r = r.WithContext(SetNoReportFromCtx(ctx))
+		ctx = SetNoReportFromCtx(ctx)
 		p2pIngr := atomic.NewUint64(0)
-		r = r.WithContext(SetFetchSizeFromCtx(ctx, p2pIngr))
+		ctx = SetFetchSizeFromCtx(ctx, p2pIngr)
 		dagStats := handlers.NewDagStats()
-		r = r.WithContext(SetDagStatFromCtx(ctx, dagStats))
+		ctx = SetDagStatFromCtx(ctx, dagStats)
+		r = r.WithContext(ctx)
 
 		maxSize, err := extractSizeFromArgs(r)
 		if err != nil {
