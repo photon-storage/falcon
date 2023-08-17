@@ -45,7 +45,8 @@ func (h *pinAddRespHandler) update(
 	if err := json.Unmarshal(data, &val); err == nil {
 		if len(val.Pins) == 0 {
 			return json.Marshal(&PinAddResult{
-				Done:               false,
+				Success:            false,
+				InProgress:         true,
 				ProcessedNumBlocks: val.Progress,
 			})
 		}
@@ -63,11 +64,17 @@ func (h *pinAddRespHandler) update(
 			h.recursive,
 			ds,
 		); err != nil {
-			return nil, err
+			return json.Marshal(&PinAddResult{
+				Success:            false,
+				InProgress:         false,
+				ProcessedNumBlocks: val.Progress,
+				Message:            fmt.Sprintf("dag stats error: %v", err),
+			})
 		}
 
 		return json.Marshal(&PinAddResult{
-			Done:                  true,
+			Success:               true,
+			InProgress:            false,
 			ProcessedNumBlocks:    val.Progress,
 			DeduplicatedSize:      ds.DeduplicatedSize.Load(),
 			DeduplicatedNumBlocks: ds.DeduplicatedNumBlocks.Load(),
@@ -80,12 +87,13 @@ func (h *pinAddRespHandler) update(
 }
 
 type PinAddResult struct {
-	Done                  bool   `json:"done,omitempty"`
-	ProcessedNumBlocks    int    `json:"processed_num_blocks,omitempty"`
-	DeduplicatedSize      int64  `json:"duplicated_size,omitempty"`
-	DeduplicatedNumBlocks int64  `json:"duplicated_num_blocks,omitempty"`
-	TotalSize             int64  `json:"total_size,omitempty"`
-	TotalNumBlocks        int64  `json:"total_num_blocks,omitempty"`
+	Success               bool   `json:"success"`
+	InProgress            bool   `json:"in_progress"`
+	ProcessedNumBlocks    int    `json:"processed_num_blocks"`
+	DeduplicatedSize      int64  `json:"duplicated_size"`
+	DeduplicatedNumBlocks int64  `json:"duplicated_num_blocks"`
+	TotalSize             int64  `json:"total_size"`
+	TotalNumBlocks        int64  `json:"total_num_blocks"`
 	Message               string `json:"message"`
 }
 
@@ -97,7 +105,9 @@ func (h *ExtendedHandlers) PinAdd() gohttp.HandlerFunc {
 				w,
 				gohttp.StatusBadRequest,
 				&PinAddResult{
-					Message: err.Error(),
+					Success:    false,
+					InProgress: false,
+					Message:    fmt.Sprintf("error parsing params: %v", err),
 				},
 			)
 			return
@@ -153,10 +163,14 @@ func (h *pinRmRespHandler) update(
 			h.recursive,
 			ds,
 		); err != nil {
-			return nil, err
+			return json.Marshal(&PinRmResult{
+				Success: false,
+				Message: fmt.Sprintf("dag stats error: %v", err),
+			})
 		}
 
 		return json.Marshal(&PinRmResult{
+			Success:               true,
 			DeduplicatedSize:      ds.DeduplicatedSize.Load(),
 			DeduplicatedNumBlocks: ds.DeduplicatedNumBlocks.Load(),
 			TotalSize:             ds.TotalSize.Load(),
@@ -168,10 +182,11 @@ func (h *pinRmRespHandler) update(
 }
 
 type PinRmResult struct {
-	DeduplicatedSize      int64  `json:"duplicated_size,omitempty"`
-	DeduplicatedNumBlocks int64  `json:"duplicated_num_blocks,omitempty"`
-	TotalSize             int64  `json:"total_size,omitempty"`
-	TotalNumBlocks        int64  `json:"total_num_blocks,omitempty"`
+	Success               bool   `json:"success"`
+	DeduplicatedSize      int64  `json:"duplicated_size"`
+	DeduplicatedNumBlocks int64  `json:"duplicated_num_blocks"`
+	TotalSize             int64  `json:"total_size"`
+	TotalNumBlocks        int64  `json:"total_num_blocks"`
 	Message               string `json:"message"`
 }
 
@@ -183,7 +198,8 @@ func (h *ExtendedHandlers) PinRm() gohttp.HandlerFunc {
 				w,
 				gohttp.StatusBadRequest,
 				&PinRmResult{
-					Message: err.Error(),
+					Success: false,
+					Message: fmt.Sprintf("error parsing params: %v", err),
 				},
 			)
 			return
@@ -206,6 +222,7 @@ func (h *ExtendedHandlers) PinRm() gohttp.HandlerFunc {
 }
 
 type PinnedCountResult struct {
+	Success bool   `json:"success"`
 	Count   int    `json:"count"`
 	Message string `json:"message"`
 }
@@ -214,12 +231,14 @@ func (h *ExtendedHandlers) PinnedCount() gohttp.HandlerFunc {
 	return gohttp.HandlerFunc(func(w gohttp.ResponseWriter, r *gohttp.Request) {
 		c, recursive, err := parsePinParams(r)
 		if err != nil {
+			fmt.Printf("here?????\n")
 			writeJSON(
 				w,
 				gohttp.StatusBadRequest,
 				&PinnedCountResult{
-					Count:   -1,
-					Message: err.Error(),
+					Success: false,
+					Count:   0,
+					Message: fmt.Sprintf("error parsing params: %v", err),
 				},
 			)
 			return
@@ -231,7 +250,8 @@ func (h *ExtendedHandlers) PinnedCount() gohttp.HandlerFunc {
 				w,
 				gohttp.StatusNotImplemented,
 				&PinnedCountResult{
-					Count:   -1,
+					Success: false,
+					Count:   0,
 					Message: "pinner does not support pinned count query",
 				},
 			)
@@ -244,7 +264,8 @@ func (h *ExtendedHandlers) PinnedCount() gohttp.HandlerFunc {
 				w,
 				gohttp.StatusInternalServerError,
 				&PinnedCountResult{
-					Count:   -1,
+					Success: false,
+					Count:   0,
 					Message: fmt.Sprintf("error querying count: %v", err),
 				},
 			)
@@ -255,8 +276,8 @@ func (h *ExtendedHandlers) PinnedCount() gohttp.HandlerFunc {
 			w,
 			gohttp.StatusOK,
 			&PinnedCountResult{
+				Success: true,
 				Count:   int(count),
-				Message: "ok",
 			},
 		)
 	})
