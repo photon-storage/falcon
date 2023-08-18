@@ -160,6 +160,9 @@ func apiOption(
 		mux.Handle(apiPrefix+"/pin/rm", auth.wrap(
 			report.wrap(extHandlers.PinRm()),
 		))
+		mux.Handle(apiPrefix+"/pin/ls", auth.wrap(
+			report.wrap(extHandlers.PinList()),
+		))
 		mux.Handle(apiPrefix+"/pin/count", auth.wrap(
 			report.wrap(extHandlers.PinnedCount()),
 		))

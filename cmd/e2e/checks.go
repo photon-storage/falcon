@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -14,7 +15,6 @@ import (
 	format "github.com/ipfs/go-ipld-format"
 	dagcmd "github.com/ipfs/kubo/core/commands/dag"
 	"github.com/ipfs/kubo/core/commands/name"
-	"github.com/ipfs/kubo/core/commands/pin"
 
 	"github.com/photon-storage/go-gw3/common/http"
 
@@ -410,7 +410,18 @@ var checks = []*check{
 			code, header, data, err := gatewayPost(
 				ctx,
 				cfg,
-				"api/v0/pin/ls?stream=false",
+				"api/v0/pin/ls?recursive=0",
+				nil,
+				nil,
+			)
+			if err := logResp(code, header, data, err); err != nil {
+				return err
+			}
+
+			code, header, data, err = gatewayPost(
+				ctx,
+				cfg,
+				"api/v0/pin/ls?recursive=1",
 				nil,
 				nil,
 			)
@@ -432,7 +443,7 @@ var checks = []*check{
 			code, header, data, err := gatewayPost(
 				ctx,
 				cfg,
-				"api/v0/pin/ls?quite=false&stream=false",
+				"api/v0/pin/ls?recursive=1",
 				nil,
 				nil,
 			)
@@ -440,21 +451,30 @@ var checks = []*check{
 				return err
 			}
 
-			res := pin.PinLsOutputWrapper{}
-			if err := json.Unmarshal(data, &res); err != nil {
-				return err
+			dec := json.NewDecoder(bytes.NewReader(data))
+			var cids []*handlers.CidCount
+			for {
+				var res handlers.PinListResult
+				if err := dec.Decode(&res); err != nil {
+					return err
+				}
+				cids = append(cids, res.Batch...)
+
+				if !res.InProgress {
+					if res.Success {
+						break
+					} else {
+						return fmt.Errorf(res.Message)
+					}
+				}
 			}
 
 			logStep("Unpins")
-			for k, v := range res.Keys {
-				if v.Type == "indirect" {
-					continue
-				}
-
+			for _, v := range cids {
 				code, header, data, err = gatewayPost(
 					ctx,
 					cfg,
-					fmt.Sprintf("api/v0/pin/rm?arg=%s&recursive=true", k),
+					fmt.Sprintf("api/v0/pin/rm?arg=%s&recursive=true", v.Cid),
 					nil,
 					nil,
 				)
