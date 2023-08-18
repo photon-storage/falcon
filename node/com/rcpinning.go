@@ -152,11 +152,23 @@ func (p *WrappedPinner) DirectKeys(
 	return p.Pinner.DirectKeys(ctx)
 }
 
+func (p *WrappedPinner) DirectKeysWithCount(
+	ctx context.Context,
+) <-chan *rcpinner.StreamedCidWithCount {
+	return p.Pinner.DirectKeysWithCount(ctx)
+}
+
 func (p *WrappedPinner) RecursiveKeys(
 	ctx context.Context,
 ) <-chan pin.StreamedCid {
 	metrics.CounterInc("rc_pinner_recursive_keys_call_total")
 	return p.Pinner.RecursiveKeys(ctx)
+}
+
+func (p *WrappedPinner) RecursiveKeysWithCount(
+	ctx context.Context,
+) <-chan *rcpinner.StreamedCidWithCount {
+	return p.Pinner.RecursiveKeysWithCount(ctx)
 }
 
 func (p *WrappedPinner) InternalPins(

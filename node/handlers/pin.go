@@ -13,6 +13,7 @@ import (
 	"github.com/ipfs/kubo/core/commands/pin"
 
 	"github.com/photon-storage/go-gw3/common/http"
+	rcpinner "github.com/photon-storage/go-rc-pinner"
 
 	"github.com/photon-storage/falcon/node/com"
 )
@@ -221,6 +222,97 @@ func (h *ExtendedHandlers) PinRm() gohttp.HandlerFunc {
 	})
 }
 
+type CidCount struct {
+	Cid   string `json:"c"`
+	Count int    `json:"v"`
+}
+
+type PinListResult struct {
+	Success    bool        `json:"success"`
+	InProgress bool        `json:"in_progress"`
+	Batch      []*CidCount `json:"batch"`
+	Message    string      `json:"message"`
+}
+
+const cidBatchSize = 100
+
+func (h *ExtendedHandlers) PinList() gohttp.HandlerFunc {
+	return gohttp.HandlerFunc(func(w gohttp.ResponseWriter, r *gohttp.Request) {
+		recursive, err := parseRecursiveParam(r)
+		if err != nil {
+			writeJSON(
+				w,
+				gohttp.StatusBadRequest,
+				&PinListResult{
+					Success:    false,
+					InProgress: false,
+					Message:    fmt.Sprintf("error parsing params: %v", err),
+				},
+			)
+			return
+		}
+
+		pinner := com.GetRcPinner(h.nd.Pinning)
+		if pinner == nil {
+			writeJSON(
+				w,
+				gohttp.StatusNotImplemented,
+				&PinListResult{
+					Success:    false,
+					InProgress: false,
+					Message:    "pinner does not support pinned count query",
+				},
+			)
+			return
+		}
+
+		var ch <-chan *rcpinner.StreamedCidWithCount
+		if recursive {
+			ch = pinner.RecursiveKeysWithCount(r.Context())
+		} else {
+			ch = pinner.DirectKeysWithCount(r.Context())
+		}
+
+		var batch []*CidCount
+		for v := range ch {
+			if v.Cid.Err != nil {
+				writeJSON(
+					w,
+					gohttp.StatusNotImplemented,
+					&PinListResult{
+						Success:    false,
+						InProgress: false,
+						Message:    fmt.Sprintf("pinner index error: %v", v.Cid.Err),
+					},
+				)
+				return
+			}
+
+			batch = append(batch, &CidCount{
+				Cid:   v.Cid.C.String(),
+				Count: int(v.Count),
+			})
+
+			if len(batch) >= cidBatchSize {
+				data, _ := json.Marshal(&PinListResult{
+					Success:    false,
+					InProgress: true,
+					Batch:      batch,
+				})
+				w.Write(data)
+				batch = nil
+			}
+		}
+
+		data, _ := json.Marshal(&PinListResult{
+			Success:    true,
+			InProgress: false,
+			Batch:      batch,
+		})
+		w.Write(data)
+	})
+}
+
 type PinnedCountResult struct {
 	Success bool   `json:"success"`
 	Count   int    `json:"count"`
@@ -289,15 +381,22 @@ func parsePinParams(r *gohttp.Request) (cid.Cid, bool, error) {
 		return cid.Undef, false, ErrInvalidCID
 	}
 
-	recursiveStr := strings.ToLower(query.Get(http.ParamIPFSRecursive))
-	recursive := false
-	if recursiveStr == "1" || recursiveStr == "true" {
-		recursive = true
-	} else if recursiveStr == "0" || recursiveStr == "false" {
-		recursive = false
-	} else {
-		return cid.Undef, false, ErrInvalidRecursiveFlag
+	recursive, err := parseRecursiveParam(r)
+	if err != nil {
+		return cid.Undef, false, err
 	}
 
 	return c, recursive, nil
+}
+
+func parseRecursiveParam(r *gohttp.Request) (bool, error) {
+	query := r.URL.Query()
+	recursiveStr := strings.ToLower(query.Get(http.ParamIPFSRecursive))
+	if recursiveStr == "1" || recursiveStr == "true" {
+		return true, nil
+	} else if recursiveStr == "0" || recursiveStr == "false" {
+		return false, nil
+	}
+
+	return false, ErrInvalidRecursiveFlag
 }
