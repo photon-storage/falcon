@@ -13,6 +13,7 @@ import (
 	libp2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
 
 	"github.com/photon-storage/go-common/log"
+	"github.com/photon-storage/go-common/metrics"
 	"github.com/photon-storage/go-gw3/common/auth"
 	"github.com/photon-storage/go-gw3/common/http"
 
@@ -88,13 +89,13 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 		defer cancel()
 		r = r.WithContext(ctx)
 
+		metrics.CounterInc("request_call_total")
 		// Disable sentry
 		/*
 			sw := newContentSentry(ctx, w)
 			defer func() {
 				sw.flush()
 
-				metrics.CounterInc("request_call_total")
 				flagged := sw.getFlaggedRuleName()
 				if flagged != "" {
 					metrics.CounterInc(fmt.Sprintf(
