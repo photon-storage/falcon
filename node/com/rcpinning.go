@@ -117,6 +117,22 @@ func (p *WrappedPinner) Unpin(
 	return nil
 }
 
+func (p *WrappedPinner) GetCount(
+	ctx context.Context,
+	c cid.Cid,
+	recursive bool,
+) (uint16, error) {
+	return p.Pinner.GetCount(ctx, c, recursive)
+}
+
+func (p *WrappedPinner) UpdateCounts(
+	ctx context.Context,
+	incs []*rcpinner.UpdateCount,
+	decs []*rcpinner.UpdateCount,
+) error {
+	return p.Pinner.UpdateCounts(ctx, incs, decs)
+}
+
 func (p *WrappedPinner) Update(
 	ctx context.Context,
 	from cid.Cid,
@@ -175,14 +191,6 @@ func (p *WrappedPinner) InternalPins(
 	ctx context.Context,
 ) <-chan pin.StreamedCid {
 	return p.Pinner.InternalPins(ctx)
-}
-
-func (p *WrappedPinner) PinnedCount(
-	ctx context.Context,
-	c cid.Cid,
-	recursive bool,
-) (uint16, error) {
-	return p.Pinner.PinnedCount(ctx, c, recursive)
 }
 
 func (p *WrappedPinner) TotalPinnedCount() int64 {

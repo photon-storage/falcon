@@ -5,10 +5,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	gohttp "net/http"
 	"strings"
 
 	coreiface "github.com/ipfs/boxo/coreiface"
+	coreifacepath "github.com/ipfs/boxo/coreiface/path"
+	"github.com/ipfs/boxo/ipld/merkledag"
+	pinneriface "github.com/ipfs/boxo/pinning/pinner"
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/kubo/core/commands/pin"
 
@@ -21,6 +25,8 @@ import (
 var (
 	ErrInvalidCID           = errors.New("invalid CID")
 	ErrInvalidRecursiveFlag = errors.New("invalid value for recursive flag")
+	ErrCIDNotChild          = errors.New("CID is not a child from root")
+	ErrCIDDuplicated        = errors.New("duplicated CID found")
 )
 
 type pinAddRespHandler struct {
@@ -222,6 +228,181 @@ func (h *ExtendedHandlers) PinRm() gohttp.HandlerFunc {
 	})
 }
 
+type PinChildrenUpdate struct {
+	Cid       string `json:"c"`
+	Recursive bool   `json:"r"`
+}
+
+type PinChildrenUpdateRequest struct {
+	Root string               `json:"root"`
+	Incs []*PinChildrenUpdate `json:"incs"`
+	Decs []*PinChildrenUpdate `json:"decs"`
+}
+
+type PinChildrenUpdateResult struct {
+	Success bool   `json:"success"`
+	Message string `json:"message"`
+}
+
+func (h *ExtendedHandlers) PinChildrenUpdate() gohttp.HandlerFunc {
+	return gohttp.HandlerFunc(func(w gohttp.ResponseWriter, r *gohttp.Request) {
+		var data []byte
+		if r.Body != nil {
+			data, _ = io.ReadAll(r.Body)
+		}
+		var pcu PinChildrenUpdateRequest
+		if err := json.Unmarshal(data, &pcu); err != nil {
+			writeJSON(
+				w,
+				gohttp.StatusBadRequest,
+				&PinChildrenUpdateResult{
+					Success: false,
+					Message: fmt.Sprintf("error parsing params: %v", err),
+				},
+			)
+			return
+		}
+
+		pinner := com.GetRcPinner(h.nd.Pinning)
+		if pinner == nil {
+			writeJSON(
+				w,
+				gohttp.StatusNotImplemented,
+				&PinChildrenUpdateResult{
+					Success: false,
+					Message: "pinner does not support pinned count query",
+				},
+			)
+			return
+		}
+
+		incs, decs, err := validateChildrenUpdate(
+			r.Context(),
+			h.api,
+			pinner,
+			&pcu,
+		)
+		if err != nil {
+			writeJSON(
+				w,
+				gohttp.StatusBadRequest,
+				&PinChildrenUpdateResult{
+					Success: false,
+					Message: fmt.Sprintf("invalid request: %v", err),
+				},
+			)
+			return
+		}
+
+		if err := pinner.UpdateCounts(r.Context(), incs, decs); err != nil {
+			writeJSON(
+				w,
+				gohttp.StatusBadRequest,
+				&PinChildrenUpdateResult{
+					Success: false,
+					Message: fmt.Sprintf("error updating counts: %v", err),
+				},
+			)
+			return
+		}
+
+		writeJSON(
+			w,
+			gohttp.StatusOK,
+			&PinChildrenUpdateResult{
+				Success: true,
+				Message: "ok",
+			},
+		)
+	})
+}
+
+func validateChildrenUpdate(
+	ctx context.Context,
+	api coreiface.CoreAPI,
+	pinner *com.WrappedPinner,
+	r *PinChildrenUpdateRequest,
+) ([]*rcpinner.UpdateCount, []*rcpinner.UpdateCount, error) {
+	rootCid, err := cid.Parse(r.Root)
+	if err != nil {
+		return nil, nil, err
+	}
+	cnt, err := pinner.GetCount(ctx, rootCid, true)
+	if err != nil {
+		return nil, nil, err
+	}
+	if cnt == 0 {
+		return nil, nil, pinneriface.ErrNotPinned
+	}
+
+	br, err := api.Block().Get(ctx, coreifacepath.New(r.Root))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	data, err := io.ReadAll(br)
+	if err != nil {
+		return nil, nil, err
+	}
+	rootNd, err := merkledag.DecodeProtobuf(data)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	m := map[string]bool{}
+	for _, link := range rootNd.Links() {
+		m[link.Cid.String()] = true
+	}
+	seen := map[string]bool{}
+
+	dupKey := func(c string, r bool) string {
+		return fmt.Sprintf("%v_%v", c, r)
+	}
+	check := func(u *PinChildrenUpdate) (*rcpinner.UpdateCount, error) {
+		if !m[u.Cid] {
+			return nil, ErrCIDNotChild
+		}
+
+		dk := dupKey(u.Cid, u.Recursive)
+		if seen[dk] {
+			return nil, ErrCIDDuplicated
+		}
+		seen[dk] = true
+
+		k, err := cid.Parse(u.Cid)
+		if err != nil {
+			return nil, ErrInvalidCID
+		}
+
+		return &rcpinner.UpdateCount{
+			CID:       k,
+			Recursive: u.Recursive,
+		}, nil
+	}
+
+	var incs []*rcpinner.UpdateCount
+	for _, u := range r.Incs {
+		u, err := check(u)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		incs = append(incs, u)
+	}
+
+	var decs []*rcpinner.UpdateCount
+	for _, u := range r.Decs {
+		u, err := check(u)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		decs = append(decs, u)
+	}
+
+	return incs, decs, nil
+}
+
 type CidCount struct {
 	Cid   string `json:"c"`
 	Count int    `json:"v"`
@@ -278,7 +459,7 @@ func (h *ExtendedHandlers) PinList() gohttp.HandlerFunc {
 			if v.Cid.Err != nil {
 				writeJSON(
 					w,
-					gohttp.StatusNotImplemented,
+					gohttp.StatusInternalServerError,
 					&PinListResult{
 						Success:    false,
 						InProgress: false,
@@ -349,7 +530,7 @@ func (h *ExtendedHandlers) PinnedCount() gohttp.HandlerFunc {
 			return
 		}
 
-		count, err := pinner.PinnedCount(r.Context(), c, recursive)
+		count, err := pinner.GetCount(r.Context(), c, recursive)
 		if err != nil {
 			writeJSON(
 				w,
