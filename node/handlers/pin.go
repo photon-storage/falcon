@@ -362,16 +362,17 @@ func validateChildrenUpdate(
 	dupKey := func(c string, r bool) string {
 		return fmt.Sprintf("%v_%v", c, r)
 	}
-	check := func(u *PinChildrenUpdate) (*rcpinner.UpdateCount, error) {
+	check := func(u *PinChildrenUpdate, set bool) (*rcpinner.UpdateCount, error) {
 		if !m[u.Cid] {
 			return nil, ErrCIDNotChild
 		}
 
 		dk := dupKey(u.Cid, u.Recursive)
-		if seen[dk] {
+		if set {
+			seen[dk] = true
+		} else if seen[dk] {
 			return nil, ErrCIDDuplicated
 		}
-		seen[dk] = true
 
 		k, err := cid.Parse(u.Cid)
 		if err != nil {
@@ -386,7 +387,7 @@ func validateChildrenUpdate(
 
 	var incs []*rcpinner.UpdateCount
 	for _, u := range r.Incs {
-		u, err := check(u)
+		u, err := check(u, true)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -396,7 +397,7 @@ func validateChildrenUpdate(
 
 	var decs []*rcpinner.UpdateCount
 	for _, u := range r.Decs {
-		u, err := check(u)
+		u, err := check(u, false)
 		if err != nil {
 			return nil, nil, err
 		}
