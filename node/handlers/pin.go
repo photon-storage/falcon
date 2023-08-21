@@ -244,6 +244,10 @@ type PinChildrenUpdateResult struct {
 	Message string `json:"message"`
 }
 
+// PinChildrenUpdate updates a root node's children's reference count in
+// pinner index. The API requires the root node is already pinned recursively.
+// All updating CIDs must be current child of the root node. For decrementing
+// CID, its current count must be positive, otherwise, the all updates abort.
 func (h *ExtendedHandlers) PinChildrenUpdate() gohttp.HandlerFunc {
 	return gohttp.HandlerFunc(func(w gohttp.ResponseWriter, r *gohttp.Request) {
 		var data []byte
