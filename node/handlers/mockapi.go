@@ -1,19 +1,24 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"io"
 
 	coreiface "github.com/ipfs/boxo/coreiface"
 	"github.com/ipfs/boxo/coreiface/options"
 	"github.com/ipfs/boxo/coreiface/path"
+	"github.com/ipfs/boxo/ipld/merkledag"
 	ipld "github.com/ipfs/go-ipld-format"
 )
 
 var _ coreiface.CoreAPI = &mockAPI{}
 
 type mockAPI struct {
-	dag coreiface.APIDagService
+	dag   coreiface.APIDagService
+	block *mockAPIBlock
 }
 
 func (m *mockAPI) Unixfs() coreiface.UnixfsAPI {
@@ -21,7 +26,7 @@ func (m *mockAPI) Unixfs() coreiface.UnixfsAPI {
 }
 
 func (m *mockAPI) Block() coreiface.BlockAPI {
-	return nil
+	return m.block
 }
 
 // Dag returns an implementation of Dag API
@@ -92,4 +97,64 @@ type mockAPIDag struct {
 
 func (m *mockAPIDag) Pinning() ipld.NodeAdder {
 	return nil
+}
+
+type mockAPIBlock struct {
+	blocks map[string][]byte
+}
+
+func newMockAPIBlock(nodes ...*merkledag.ProtoNode) *mockAPIBlock {
+	m := &mockAPIBlock{
+		blocks: map[string][]byte{},
+	}
+	for _, nd := range nodes {
+		m.add(nd)
+	}
+	return m
+}
+
+func (m *mockAPIBlock) add(nd *merkledag.ProtoNode) {
+	m.blocks[fmt.Sprintf("/ipfs/%v", nd.Cid().String())] = nd.RawData()
+}
+
+// Put imports raw block data, hashing it using specified settings.
+func (m *mockAPIBlock) Put(
+	context.Context,
+	io.Reader,
+	...options.BlockPutOption,
+) (coreiface.BlockStat, error) {
+	return nil, errors.New("not implemented")
+}
+
+// Get attempts to resolve the path and return a reader for data in the block
+func (m *mockAPIBlock) Get(
+	ctx context.Context,
+	p path.Path,
+) (io.Reader, error) {
+	b := m.blocks[p.String()]
+	if b == nil {
+		return nil, ipld.ErrNotFound{}
+	}
+	return bytes.NewReader(b), nil
+}
+
+// Rm removes the block specified by the path from local blockstore.
+// By default an error will be returned if the block can't be found locally.
+//
+// NOTE: If the specified block is pinned it won't be removed and no error
+// will be returned
+func (m *mockAPIBlock) Rm(
+	context.Context,
+	path.Path,
+	...options.BlockRmOption,
+) error {
+	return errors.New("not implemented")
+}
+
+// Stat returns information on
+func (m *mockAPIBlock) Stat(
+	context.Context,
+	path.Path,
+) (coreiface.BlockStat, error) {
+	return nil, errors.New("not implemented")
 }

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -13,7 +14,8 @@ import (
 	bs "github.com/ipfs/boxo/blockservice"
 	"github.com/ipfs/boxo/blockstore"
 	"github.com/ipfs/boxo/exchange/offline"
-	mdag "github.com/ipfs/boxo/ipld/merkledag"
+	"github.com/ipfs/boxo/ipld/merkledag"
+	pinneriface "github.com/ipfs/boxo/pinning/pinner"
 	util "github.com/ipfs/boxo/util"
 	ds "github.com/ipfs/go-datastore"
 	dssync "github.com/ipfs/go-datastore/sync"
@@ -28,8 +30,8 @@ import (
 
 var rand = util.NewTimeSeededRand()
 
-func rndNode(t require.TestingTB) *mdag.ProtoNode {
-	nd := new(mdag.ProtoNode)
+func rndNode(t require.TestingTB) *merkledag.ProtoNode {
+	nd := new(merkledag.ProtoNode)
 	nd.SetData(make([]byte, 32))
 	_, err := io.ReadFull(rand, nd.Data())
 	require.NoError(t, err)
@@ -43,7 +45,7 @@ func TestPinList(t *testing.T) {
 	dstore := dssync.MutexWrap(ds.NewMapDatastore())
 	bstore := blockstore.NewBlockstore(dstore)
 	bserv := bs.New(bstore, offline.Exchange(bstore))
-	dserv := mdag.NewDAGService(bserv)
+	dserv := merkledag.NewDAGService(bserv)
 	rcp, err := rcpinner.New(ctx, dstore, dserv)
 	require.NoError(t, err)
 	pinner := &com.WrappedPinner{
@@ -131,7 +133,7 @@ func TestPinListMultiBatches(t *testing.T) {
 	dstore := dssync.MutexWrap(ds.NewMapDatastore())
 	bstore := blockstore.NewBlockstore(dstore)
 	bserv := bs.New(bstore, offline.Exchange(bstore))
-	dserv := mdag.NewDAGService(bserv)
+	dserv := merkledag.NewDAGService(bserv)
 	rcp, err := rcpinner.New(ctx, dstore, dserv)
 	require.NoError(t, err)
 	pinner := &com.WrappedPinner{
@@ -147,7 +149,7 @@ func TestPinListMultiBatches(t *testing.T) {
 		nil,
 	)
 
-	var nodes []*mdag.ProtoNode
+	var nodes []*merkledag.ProtoNode
 	for i := 0; i < 2*cidBatchSize+10; i++ {
 		nd := rndNode(t)
 		require.NoError(t, dserv.Add(ctx, nd))
@@ -199,7 +201,7 @@ func TestPinnedCount(t *testing.T) {
 	dstore := dssync.MutexWrap(ds.NewMapDatastore())
 	bstore := blockstore.NewBlockstore(dstore)
 	bserv := bs.New(bstore, offline.Exchange(bstore))
-	dserv := mdag.NewDAGService(bserv)
+	dserv := merkledag.NewDAGService(bserv)
 	rcp, err := rcpinner.New(ctx, dstore, dserv)
 	require.NoError(t, err)
 	pinner := &com.WrappedPinner{
@@ -343,6 +345,248 @@ func TestPinnedCount(t *testing.T) {
 	require.False(t, res.Success)
 	require.Equal(t, 0, res.Count)
 	require.True(t, strings.Contains(res.Message, "invalid CID"))
+}
+
+func TestPinChildrenUpdate(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	dstore := dssync.MutexWrap(ds.NewMapDatastore())
+	bstore := blockstore.NewBlockstore(dstore)
+	bserv := bs.New(bstore, offline.Exchange(bstore))
+	dserv := merkledag.NewDAGService(bserv)
+	rcp, err := rcpinner.New(ctx, dstore, dserv)
+	require.NoError(t, err)
+	pinner := &com.WrappedPinner{
+		Pinner: rcp,
+	}
+
+	a := rndNode(t)
+	b := rndNode(t)
+	c := rndNode(t)
+	d := rndNode(t)
+	require.NoError(t, a.AddNodeLink("c0", b))
+	require.NoError(t, a.AddNodeLink("c1", c))
+	require.NoError(t, dserv.Add(ctx, a))
+	require.NoError(t, dserv.Add(ctx, b))
+	require.NoError(t, dserv.Add(ctx, c))
+	require.NoError(t, dserv.Add(ctx, d))
+	require.NoError(t, pinner.Pin(ctx, a, true))
+	require.NoError(t, pinner.Pin(ctx, b, true))
+	require.NoError(t, pinner.Pin(ctx, c, false))
+
+	h := New(
+		&core.IpfsNode{
+			Pinning: pinner,
+		},
+		nil,
+		&mockAPI{
+			block: newMockAPIBlock(a),
+		},
+		nil,
+	)
+
+	cases := []struct {
+		name string
+		run  func(t *testing.T)
+	}{
+		{
+			name: "root not pinned",
+			run: func(t *testing.T) {
+				data, err := json.Marshal(&PinChildrenUpdateRequest{
+					Root: d.Cid().String(),
+					Incs: []*PinChildrenUpdate{
+						&PinChildrenUpdate{
+							Cid:       b.Cid().String(),
+							Recursive: true,
+						},
+					},
+					Decs: []*PinChildrenUpdate{},
+				})
+				require.NoError(t, err)
+
+				r, err := gohttp.NewRequest(
+					gohttp.MethodGet,
+					"/api/v0/pin/children_update",
+					bytes.NewReader(data),
+				)
+				require.NoError(t, err)
+
+				w := httptest.NewRecorder()
+				h.PinChildrenUpdate()(w, r)
+				require.Equal(t, gohttp.StatusBadRequest, w.Code)
+				var res PinChildrenUpdateResult
+				decodeResp(t, w, &res)
+				require.False(t, res.Success)
+				require.True(t, strings.Contains(res.Message, pinneriface.ErrNotPinned.Error()))
+			},
+		},
+		{
+			name: "not a child",
+			run: func(t *testing.T) {
+				data, err := json.Marshal(&PinChildrenUpdateRequest{
+					Root: a.Cid().String(),
+					Incs: []*PinChildrenUpdate{
+						&PinChildrenUpdate{
+							Cid:       d.Cid().String(),
+							Recursive: true,
+						},
+					},
+					Decs: []*PinChildrenUpdate{},
+				})
+				require.NoError(t, err)
+
+				r, err := gohttp.NewRequest(
+					gohttp.MethodGet,
+					"/api/v0/pin/children_update",
+					bytes.NewReader(data),
+				)
+				require.NoError(t, err)
+
+				w := httptest.NewRecorder()
+				h.PinChildrenUpdate()(w, r)
+				require.Equal(t, gohttp.StatusBadRequest, w.Code)
+				var res PinChildrenUpdateResult
+				decodeResp(t, w, &res)
+				require.False(t, res.Success)
+				require.True(t, strings.Contains(res.Message, ErrCIDNotChild.Error()))
+			},
+		},
+		{
+			name: "deupped cid",
+			run: func(t *testing.T) {
+				data, err := json.Marshal(&PinChildrenUpdateRequest{
+					Root: a.Cid().String(),
+					Incs: []*PinChildrenUpdate{
+						&PinChildrenUpdate{
+							Cid:       b.Cid().String(),
+							Recursive: true,
+						},
+					},
+					Decs: []*PinChildrenUpdate{
+						&PinChildrenUpdate{
+							Cid:       b.Cid().String(),
+							Recursive: true,
+						},
+					},
+				})
+				require.NoError(t, err)
+
+				r, err := gohttp.NewRequest(
+					gohttp.MethodGet,
+					"/api/v0/pin/children_update",
+					bytes.NewReader(data),
+				)
+				require.NoError(t, err)
+
+				w := httptest.NewRecorder()
+				h.PinChildrenUpdate()(w, r)
+				require.Equal(t, gohttp.StatusBadRequest, w.Code)
+				var res PinChildrenUpdateResult
+				decodeResp(t, w, &res)
+				require.False(t, res.Success)
+				require.True(t, strings.Contains(res.Message, ErrCIDDuplicated.Error()))
+			},
+		},
+		{
+			name: "pin not found",
+			run: func(t *testing.T) {
+				data, err := json.Marshal(&PinChildrenUpdateRequest{
+					Root: a.Cid().String(),
+					Incs: []*PinChildrenUpdate{
+						&PinChildrenUpdate{
+							Cid:       b.Cid().String(),
+							Recursive: true,
+						},
+					},
+					Decs: []*PinChildrenUpdate{
+						&PinChildrenUpdate{
+							Cid:       c.Cid().String(),
+							Recursive: true,
+						},
+					},
+				})
+				require.NoError(t, err)
+
+				r, err := gohttp.NewRequest(
+					gohttp.MethodGet,
+					"/api/v0/pin/children_update",
+					bytes.NewReader(data),
+				)
+				require.NoError(t, err)
+
+				w := httptest.NewRecorder()
+				h.PinChildrenUpdate()(w, r)
+				require.Equal(t, gohttp.StatusBadRequest, w.Code)
+				var res PinChildrenUpdateResult
+				decodeResp(t, w, &res)
+				require.False(t, res.Success)
+				require.True(t, strings.Contains(res.Message, pinneriface.ErrNotPinned.Error()))
+
+				pinner := com.GetRcPinner(h.nd.Pinning)
+				cnt, err := pinner.GetCount(ctx, b.Cid(), true)
+				require.NoError(t, err)
+				require.Equal(t, uint16(1), cnt)
+				cnt, err = pinner.GetCount(ctx, c.Cid(), false)
+				require.NoError(t, err)
+				require.Equal(t, uint16(1), cnt)
+			},
+		},
+		{
+			name: "success",
+			run: func(t *testing.T) {
+				data, err := json.Marshal(&PinChildrenUpdateRequest{
+					Root: a.Cid().String(),
+					Incs: []*PinChildrenUpdate{
+						&PinChildrenUpdate{
+							Cid:       b.Cid().String(),
+							Recursive: true,
+						},
+						&PinChildrenUpdate{
+							Cid:       c.Cid().String(),
+							Recursive: true,
+						},
+					},
+					Decs: []*PinChildrenUpdate{
+						&PinChildrenUpdate{
+							Cid:       c.Cid().String(),
+							Recursive: false,
+						},
+					},
+				})
+				require.NoError(t, err)
+
+				r, err := gohttp.NewRequest(
+					gohttp.MethodGet,
+					"/api/v0/pin/children_update",
+					bytes.NewReader(data),
+				)
+				require.NoError(t, err)
+
+				w := httptest.NewRecorder()
+				h.PinChildrenUpdate()(w, r)
+				require.Equal(t, gohttp.StatusOK, w.Code)
+				var res PinChildrenUpdateResult
+				decodeResp(t, w, &res)
+				require.True(t, res.Success)
+
+				pinner := com.GetRcPinner(h.nd.Pinning)
+				cnt, err := pinner.GetCount(ctx, b.Cid(), true)
+				require.NoError(t, err)
+				require.Equal(t, uint16(2), cnt)
+				cnt, err = pinner.GetCount(ctx, c.Cid(), true)
+				require.NoError(t, err)
+				require.Equal(t, uint16(1), cnt)
+				cnt, err = pinner.GetCount(ctx, c.Cid(), false)
+				require.NoError(t, err)
+				require.Equal(t, uint16(0), cnt)
+			},
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, c.run)
+	}
 }
 
 func batchMap(b []*CidCount) map[string]int {
