@@ -485,7 +485,6 @@ func TestPinChildrenUpdate(t *testing.T) {
 				var res PinChildrenUpdateResult
 				decodeResp(t, w, &res)
 				require.False(t, res.Success)
-				fmt.Printf("--> %v\n", res.Message)
 				require.True(t, strings.Contains(res.Message, ErrCIDDuplicated.Error()))
 			},
 		},
