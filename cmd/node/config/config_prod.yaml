@@ -18,6 +18,7 @@ auth:
     - /api/v0/pin/add
     # - /api/v0/pin/update
     - /api/v0/pin/rm
+    - /api/v0/pin/children_update
     #- /api/v0/pin/verify
     - /api/v0/pin/count
     - /api/v0/dag/get
