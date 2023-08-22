@@ -19,6 +19,7 @@ import (
 	"github.com/ipfs/kubo/core/coreapi"
 	"github.com/ipfs/kubo/core/corehttp"
 	manet "github.com/multiformats/go-multiaddr/net"
+	"github.com/rs/cors"
 
 	"github.com/photon-storage/go-common/log"
 	"github.com/photon-storage/go-gw3/common/http"
@@ -144,7 +145,7 @@ func apiOption(
 		lis net.Listener,
 		mux *gohttp.ServeMux,
 	) (*gohttp.ServeMux, error) {
-		apiHandlers := buildApiHandler(*cctx, lis)
+		apiHandlers := buildApiHandler(*cctx, lis, rcfg)
 		extHandlers := handlers.New(nd, rcfg, coreapi, apiHandlers)
 
 		mux.Handle("/status", extHandlers.Status())
@@ -154,26 +155,27 @@ func apiOption(
 			report.wrap(apiHandlers),
 		))
 		// Custom /api/v0 APIs.
+		ch := cors.New(*getCorsOpts(rcfg))
 		mux.Handle(apiPrefix+"/pin/add", auth.wrap(
-			report.wrap(extHandlers.PinAdd()),
+			report.wrap(ch.Handler(extHandlers.PinAdd())),
 		))
 		mux.Handle(apiPrefix+"/pin/rm", auth.wrap(
-			report.wrap(extHandlers.PinRm()),
+			report.wrap(ch.Handler(extHandlers.PinRm())),
 		))
 		mux.Handle(apiPrefix+"/pin/children_update", auth.wrap(
-			report.wrap(extHandlers.PinChildrenUpdate()),
+			report.wrap(ch.Handler(extHandlers.PinChildrenUpdate())),
 		))
 		mux.Handle(apiPrefix+"/pin/ls", auth.wrap(
-			report.wrap(extHandlers.PinList()),
+			report.wrap(ch.Handler(extHandlers.PinList())),
 		))
 		mux.Handle(apiPrefix+"/pin/count", auth.wrap(
-			report.wrap(extHandlers.PinnedCount()),
+			report.wrap(ch.Handler(extHandlers.PinnedCount())),
 		))
 		mux.Handle(apiPrefix+"/name/broadcast", auth.wrap(
-			report.wrap(extHandlers.NameBroadcast()),
+			report.wrap(ch.Handler(extHandlers.NameBroadcast())),
 		))
 		mux.Handle(apiPrefix+"/dag/import", auth.wrap(
-			report.wrap(extHandlers.DagImport()),
+			report.wrap(ch.Handler(extHandlers.DagImport())),
 		))
 
 		return mux, nil
@@ -277,23 +279,79 @@ func buildIpfsHandler(
 func buildApiHandler(
 	cctx oldcmds.Context,
 	lis net.Listener,
+	rcfg *kuboconfig.Config,
 ) gohttp.Handler {
 	cfg := cmdshttp.NewServerConfig()
 	cfg.AllowGet = true
-	cfg.SetAllowedMethods(
-		gohttp.MethodGet,
-		gohttp.MethodPost,
-		gohttp.MethodPut,
-	)
+	//cfg.SetAllowedMethods(
+	//	gohttp.MethodGet,
+	//	gohttp.MethodPost,
+	//	gohttp.MethodPut,
+	//)
 	cfg.APIPath = apiPrefix
 
 	// NOTE(kmax): seems not relevant.
-	// addHeadersFromConfig(cfg, rcfg)
+	addHeadersFromConfig(cfg, rcfg)
 	// addCORSFromEnv(cfg)
-	addCORSDefaults(cfg)
-	patchCORSVars(cfg, lis.Addr())
+	//addCORSDefaults(cfg)
+	//patchCORSVars(cfg, lis.Addr())
 
 	return cmdshttp.NewHandler(&cctx, corecommands.Root, cfg)
+}
+
+func copyStrings(vals []string) []string {
+	cp := make([]string, len(vals))
+	copy(cp, vals)
+	return cp
+}
+
+func getCorsOpts(rcfg *kuboconfig.Config) *cors.Options {
+	opts := new(cors.Options)
+
+	if acao := rcfg.API.HTTPHeaders[cmdshttp.ACAOrigin]; acao != nil {
+		opts.AllowedOrigins = copyStrings(acao)
+	}
+	if acam := rcfg.API.HTTPHeaders[cmdshttp.ACAMethods]; acam != nil {
+		opts.AllowedMethods = copyStrings(acam)
+	}
+	for _, v := range rcfg.API.HTTPHeaders[cmdshttp.ACACredentials] {
+		opts.AllowCredentials = strings.ToLower(v) == "true"
+	}
+	if acah := rcfg.API.HTTPHeaders["Access-Control-Allow-Headers"]; acah != nil {
+		opts.AllowedHeaders = copyStrings(acah)
+	}
+	if aceh := rcfg.API.HTTPHeaders["Access-Control-Expose-Headers"]; aceh != nil {
+		opts.ExposedHeaders = copyStrings(aceh)
+	}
+
+	return opts
+}
+
+func addHeadersFromConfig(c *cmdshttp.ServerConfig, rcfg *kuboconfig.Config) {
+	if acao := rcfg.API.HTTPHeaders[cmdshttp.ACAOrigin]; acao != nil {
+		c.SetAllowedOrigins(acao...)
+	}
+	if acam := rcfg.API.HTTPHeaders[cmdshttp.ACAMethods]; acam != nil {
+		c.SetAllowedMethods(acam...)
+	}
+	for _, v := range rcfg.API.HTTPHeaders[cmdshttp.ACACredentials] {
+		c.SetAllowCredentials(strings.ToLower(v) == "true")
+	}
+
+	c.Headers = make(map[string][]string, len(rcfg.API.HTTPHeaders)+1)
+
+	// Copy these because the config is shared and this function is called
+	// in multiple places concurrently. Updating these in-place *is* racy.
+	for h, v := range rcfg.API.HTTPHeaders {
+		h = gohttp.CanonicalHeaderKey(h)
+		switch h {
+		case cmdshttp.ACAOrigin, cmdshttp.ACAMethods, cmdshttp.ACACredentials:
+			// these are handled by the CORs library.
+		default:
+			c.Headers[h] = v
+		}
+	}
+	c.Headers["Server"] = []string{"gw3/21"}
 }
 
 func addCORSDefaults(cfg *cmdshttp.ServerConfig) {
