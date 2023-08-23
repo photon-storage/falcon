@@ -101,7 +101,8 @@ func TestSendLog(t *testing.T) {
 		log.Req.Sig,
 		sk0.GetPublic(),
 	))
-	require.Equal(t, 0, log.CidSize)
+	require.Equal(t, 0, log.PinnedCount)
+	require.Equal(t, 0, log.PinnedBytes)
 	require.Equal(t, 200, log.Ingress)
 	require.Equal(t, 8192, log.Egress)
 

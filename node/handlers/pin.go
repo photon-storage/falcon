@@ -16,6 +16,7 @@ import (
 	"github.com/ipfs/go-cid"
 	"github.com/ipfs/kubo/core/commands/pin"
 
+	"github.com/photon-storage/go-common/log"
 	"github.com/photon-storage/go-gw3/common/http"
 	rcpinner "github.com/photon-storage/go-rc-pinner"
 
@@ -58,12 +59,7 @@ func (h *pinAddRespHandler) update(
 			})
 		}
 
-		ds := h.dagStats
-		if ds == nil {
-			ds = NewDagStats()
-		}
-
-		// Completed.
+		ds := NewDagStats()
 		if err := CalculateDagStats(
 			ctx,
 			h.api,
@@ -71,12 +67,15 @@ func (h *pinAddRespHandler) update(
 			h.recursive,
 			ds,
 		); err != nil {
-			return json.Marshal(&PinAddResult{
-				Success:            false,
-				InProgress:         false,
-				ProcessedNumBlocks: val.Progress,
-				Message:            fmt.Sprintf("dag stats error: %v", err),
-			})
+			// Ignore stats error.
+			log.Error("Error calculating dag stats",
+				"error", err,
+				"cid", h.root.String(),
+				"source", "pin add",
+			)
+		}
+		if h.dagStats != nil {
+			h.dagStats.Add(ds)
 		}
 
 		return json.Marshal(&PinAddResult{
@@ -157,12 +156,7 @@ func (h *pinRmRespHandler) update(
 	// Only convert responses that we understand.
 	var val pin.PinOutput
 	if err := json.Unmarshal(data, &val); err == nil {
-		ds := h.dagStats
-		if ds == nil {
-			ds = NewDagStats()
-		}
-
-		// Completed.
+		ds := NewDagStats()
 		if err := CalculateDagStats(
 			ctx,
 			h.api,
@@ -170,10 +164,15 @@ func (h *pinRmRespHandler) update(
 			h.recursive,
 			ds,
 		); err != nil {
-			return json.Marshal(&PinRmResult{
-				Success: false,
-				Message: fmt.Sprintf("dag stats error: %v", err),
-			})
+			// Ignore stats error.
+			log.Error("Error calculating dag stats",
+				"error", err,
+				"cid", h.root.String(),
+				"source", "pin rm",
+			)
+		}
+		if h.dagStats != nil {
+			h.dagStats.Sub(ds)
 		}
 
 		return json.Marshal(&PinRmResult{
@@ -240,8 +239,9 @@ type PinChildrenUpdateRequest struct {
 }
 
 type PinChildrenUpdateResult struct {
-	Success bool   `json:"success"`
-	Message string `json:"message"`
+	Success bool              `json:"success"`
+	Message string            `json:"message"`
+	Sizes   map[string]uint64 `json:"sizes"`
 }
 
 // PinChildrenUpdate updates a root node's children's reference count in
@@ -310,12 +310,44 @@ func (h *ExtendedHandlers) PinChildrenUpdate() gohttp.HandlerFunc {
 			return
 		}
 
+		aggrDs := getDagStatsFromCtx(r.Context())
+		sizes := map[string]uint64{}
+		for idx, updates := range [][]*rcpinner.UpdateCount{incs, decs} {
+			for _, u := range updates {
+				ds := NewDagStats()
+				if err := CalculateDagStats(
+					r.Context(),
+					h.api,
+					u.CID,
+					u.Recursive,
+					ds,
+				); err != nil {
+					// Ignore stats error.
+					log.Error("Error calculating dag stats",
+						"error", err,
+						"cid", u.CID.String(),
+						"source", "pin children update",
+					)
+				}
+
+				sizes[u.CID.String()] = uint64(ds.TotalSize.Load())
+				if aggrDs != nil {
+					if idx == 0 {
+						aggrDs.Add(ds)
+					} else {
+						aggrDs.Sub(ds)
+					}
+				}
+			}
+		}
+
 		writeJSON(
 			w,
 			gohttp.StatusOK,
 			&PinChildrenUpdateResult{
 				Success: true,
 				Message: "ok",
+				Sizes:   sizes,
 			},
 		)
 	})
