@@ -195,8 +195,11 @@ func sendLog(
 	metrics.CounterAdd("egress_bytes", float64(egr))
 	metrics.CounterInc("request_log_total")
 
+	// NOTE(kmax):
+	// version 1: no PinnedCount field. Used sign of PinnedBytes to determine
+	// whether it is a pin or unpin.
 	logData, err := json.Marshal(&reporting.LogV1{
-		Version: 1,
+		Version: 2,
 		Req: reporting.AuthReq{
 			Method: method,
 			Host:   host,

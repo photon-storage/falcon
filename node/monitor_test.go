@@ -87,7 +87,7 @@ func TestSendLog(t *testing.T) {
 
 	var log reporting.LogV1
 	require.NoError(t, json.Unmarshal(logdata, &log))
-	require.Equal(t, 1, log.Version)
+	require.Equal(t, 2, log.Version)
 	require.Equal(t, gohttp.MethodGet, log.Req.Method)
 	require.Equal(t, "/api/v0/dag/get", log.Req.URI)
 	require.Equal(t, args.Encode(), log.Req.Args)
