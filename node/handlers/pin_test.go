@@ -381,6 +381,9 @@ func TestPinChildrenUpdate(t *testing.T) {
 		},
 		nil,
 		&mockAPI{
+			dag: &mockAPIDag{
+				DAGService: dserv,
+			},
 			block: newMockAPIBlock(a),
 		},
 		nil,

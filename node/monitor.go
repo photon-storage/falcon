@@ -23,13 +23,6 @@ import (
 	"github.com/photon-storage/go-gw3/common/reporting"
 )
 
-var (
-	uriToReportCidSize = map[string]int{
-		"/api/v0/pin/add": 1,
-		"/api/v0/pin/rm":  -1,
-	}
-)
-
 type monitorHandler struct {
 	coreapi coreiface.CoreAPI
 }
@@ -155,9 +148,11 @@ func (m *monitor) run(ctx context.Context, cancel context.CancelFunc) {
 					m.host,
 					m.uri,
 					m.query,
+					true, // in progress
 					int(head-tail),
-					0,
-					0,
+					0, // egress
+					0, // pinned count
+					0, // pinned bytes
 				); err != nil {
 					metrics.CounterInc("request_log_err_total")
 					log.Error("Error making in-progress log request", "error", err)
@@ -174,9 +169,11 @@ func (m *monitor) run(ctx context.Context, cancel context.CancelFunc) {
 		m.host,
 		m.uri,
 		m.query,
+		false, // in progress
 		m.httpIngr.size()+int(m.p2pIngr.Load()-m.p2pIngrReported.Load()),
 		m.httpEgr.size(),
-		int(m.dagStats.TotalSize.Load())*uriToReportCidSize[m.uri],
+		int(m.dagStats.TotalCount.Load()),
+		int(m.dagStats.TotalSize.Load()),
 	); err != nil {
 		metrics.CounterInc("request_log_err_total")
 		log.Error("Error making log request", "error", err)
@@ -188,8 +185,10 @@ func sendLog(
 	host string,
 	uri string,
 	query url.Values,
+	inProgress bool,
 	ingr int,
 	egr int,
+	pinnedCount int,
 	pinnedBytes int,
 ) error {
 	metrics.CounterAdd("ingress_bytes", float64(ingr))
@@ -205,10 +204,12 @@ func sendLog(
 			Args:   query.Get(http.ParamP3Args),
 			Sig:    query.Get(http.ParamP3Sig),
 		},
-		CidSize: pinnedBytes,
-		Ingress: ingr,
-		Egress:  egr,
-		At:      time.Now().Unix(),
+		InProgress:  inProgress,
+		PinnedCount: pinnedCount,
+		PinnedBytes: pinnedBytes,
+		Ingress:     ingr,
+		Egress:      egr,
+		At:          time.Now().Unix(),
 	})
 	if err != nil {
 		return fmt.Errorf("error marshaling log struct: %w", err)

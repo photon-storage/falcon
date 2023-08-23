@@ -23,6 +23,7 @@ func getDagStatsFromCtx(ctx context.Context) *DagStats {
 }
 
 type DagStats struct {
+	TotalCount            *atomic.Int64
 	DeduplicatedSize      *atomic.Int64
 	DeduplicatedNumBlocks *atomic.Int64
 	TotalSize             *atomic.Int64
@@ -31,11 +32,28 @@ type DagStats struct {
 
 func NewDagStats() *DagStats {
 	return &DagStats{
+		TotalCount:            atomic.NewInt64(0),
 		DeduplicatedSize:      atomic.NewInt64(0),
 		DeduplicatedNumBlocks: atomic.NewInt64(0),
 		TotalSize:             atomic.NewInt64(0),
 		TotalNumBlocks:        atomic.NewInt64(0),
 	}
+}
+
+func (d *DagStats) Add(o *DagStats) {
+	d.TotalCount.Add(o.TotalCount.Load())
+	d.DeduplicatedSize.Add(o.DeduplicatedSize.Load())
+	d.DeduplicatedNumBlocks.Add(o.DeduplicatedNumBlocks.Load())
+	d.TotalSize.Add(o.TotalSize.Load())
+	d.TotalNumBlocks.Add(o.TotalNumBlocks.Load())
+}
+
+func (d *DagStats) Sub(o *DagStats) {
+	d.TotalCount.Sub(o.TotalCount.Load())
+	d.DeduplicatedSize.Sub(o.DeduplicatedSize.Load())
+	d.DeduplicatedNumBlocks.Sub(o.DeduplicatedNumBlocks.Load())
+	d.TotalSize.Sub(o.TotalSize.Load())
+	d.TotalNumBlocks.Sub(o.TotalNumBlocks.Load())
 }
 
 func CalculateDagStats(
@@ -51,22 +69,13 @@ func CalculateDagStats(
 		return err
 	}
 
+	stats.TotalCount.Store(1)
 	if !recursive {
-		if stats != nil {
-			sz := int64(len(root.RawData()))
-			if stats.DeduplicatedSize != nil {
-				stats.DeduplicatedSize.Store(sz)
-			}
-			if stats.DeduplicatedNumBlocks != nil {
-				stats.DeduplicatedNumBlocks.Store(1)
-			}
-			if stats.TotalSize != nil {
-				stats.TotalSize.Store(sz)
-			}
-			if stats.TotalNumBlocks != nil {
-				stats.TotalNumBlocks.Store(1)
-			}
-		}
+		sz := int64(len(root.RawData()))
+		stats.DeduplicatedSize.Store(sz)
+		stats.DeduplicatedNumBlocks.Store(1)
+		stats.TotalSize.Store(sz)
+		stats.TotalNumBlocks.Store(1)
 		return nil
 	}
 
@@ -75,25 +84,15 @@ func CalculateDagStats(
 		DAG:   nodeGetter,
 		Order: traverse.DFSPre,
 		Func: func(st traverse.State) error {
-			if stats != nil {
-				sz := int64(len(st.Node.RawData()))
-				if !seen.Has(st.Node.Cid()) {
-					if stats.DeduplicatedSize != nil {
-						stats.DeduplicatedSize.Add(sz)
-					}
-					if stats.DeduplicatedNumBlocks != nil {
-						stats.DeduplicatedNumBlocks.Inc()
-					}
-				}
-				seen.Add(st.Node.Cid())
-
-				if stats.TotalSize != nil {
-					stats.TotalSize.Add(sz)
-				}
-				if stats.TotalNumBlocks != nil {
-					stats.TotalNumBlocks.Inc()
-				}
+			sz := int64(len(st.Node.RawData()))
+			if !seen.Has(st.Node.Cid()) {
+				stats.DeduplicatedSize.Add(sz)
+				stats.DeduplicatedNumBlocks.Inc()
 			}
+			seen.Add(st.Node.Cid())
+
+			stats.TotalSize.Add(sz)
+			stats.TotalNumBlocks.Inc()
 
 			return nil
 		},
