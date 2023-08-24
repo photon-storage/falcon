@@ -750,6 +750,8 @@ github.com/photon-storage/go-gw3 v0.0.0-20230804190644-0552af4aa345 h1:Od2N9tHH7
 github.com/photon-storage/go-gw3 v0.0.0-20230804190644-0552af4aa345/go.mod h1:foxw1qeXmqSni8lHQ6FrIrJ0dfsT3PNJN6AisMFEGIo=
 github.com/photon-storage/go-gw3 v0.0.0-20230823075004-276f1842850a h1:q3XSHCOWYMW8XT5KEkaX26kDfrFD32MHOGnQr+r5lbU=
 github.com/photon-storage/go-gw3 v0.0.0-20230823075004-276f1842850a/go.mod h1:foxw1qeXmqSni8lHQ6FrIrJ0dfsT3PNJN6AisMFEGIo=
+github.com/photon-storage/go-gw3 v0.0.0-20230824062428-c323c63ec101 h1:+ov1Pq3RXrm9Zw2tYgPnJ220L7c3xKN7k3Xyoy5+PSI=
+github.com/photon-storage/go-gw3 v0.0.0-20230824062428-c323c63ec101/go.mod h1:foxw1qeXmqSni8lHQ6FrIrJ0dfsT3PNJN6AisMFEGIo=
 github.com/photon-storage/go-rc-pinner v0.0.0-20230710072307-7ae3c3a4a3ba h1:ufZ3NFJV6bQTjjbxkaqNcENzXVf0dA2nBahGGFKYsoY=
 github.com/photon-storage/go-rc-pinner v0.0.0-20230710072307-7ae3c3a4a3ba/go.mod h1:0YSSfS0lJDxsCelpEYJOXKuT9ISsFftHavTX5m4h4sE=
 github.com/photon-storage/go-rc-pinner v0.0.0-20230721051507-dc6bc3a2df3e h1:CoN+/m5nsNOCv9FUd/GQCPHjfNbjPJC0UaYDGVU0pFM=
@@ -764,6 +766,8 @@ github.com/photon-storage/go-rc-pinner v0.0.0-20230821023823-c859d046c3f2 h1:pwo
 github.com/photon-storage/go-rc-pinner v0.0.0-20230821023823-c859d046c3f2/go.mod h1:0YSSfS0lJDxsCelpEYJOXKuT9ISsFftHavTX5m4h4sE=
 github.com/photon-storage/go-rc-pinner v0.0.0-20230821033841-854b64ce6c7f h1:NnnpGV96KOcRknlAJPKtYl2WqklttPxw4i9hdgGyQbI=
 github.com/photon-storage/go-rc-pinner v0.0.0-20230821033841-854b64ce6c7f/go.mod h1:0YSSfS0lJDxsCelpEYJOXKuT9ISsFftHavTX5m4h4sE=
+github.com/photon-storage/go-rc-pinner v0.0.0-20230824044214-97384a88c814 h1:hXjxvmH97KbIPbde4W7B4g3zjrwYRXwtfR8uvqVDOe8=
+github.com/photon-storage/go-rc-pinner v0.0.0-20230824044214-97384a88c814/go.mod h1:0YSSfS0lJDxsCelpEYJOXKuT9ISsFftHavTX5m4h4sE=
 github.com/photon-storage/photon-proto v0.0.0-20220806134259-8b3f28ad0258 h1:jscyag7xBM2jGmcpz/fyfcXjzQZVtLamCpzS6Fj/+yM=
 github.com/photon-storage/photon-proto v0.0.0-20220806134259-8b3f28ad0258/go.mod h1:2ugydRJbn8v57ixOXz3TvC4VVlxL913c5HqmN024B9M=
 github.com/photon-storage/protoc-gen-go-cast v0.0.0-20220806055803-33f2f2094e74 h1:8elipmUC8A6Ezaa4VN/ytQ/XfrfEm5Ee70BAsRRVIQA=

@@ -14,13 +14,15 @@ import (
 	coreiface "github.com/ipfs/boxo/coreiface"
 	"go.uber.org/atomic"
 
-	"github.com/photon-storage/falcon/node/config"
-	"github.com/photon-storage/falcon/node/handlers"
 	"github.com/photon-storage/go-common/log"
 	"github.com/photon-storage/go-common/metrics"
 	"github.com/photon-storage/go-gw3/common/auth"
 	"github.com/photon-storage/go-gw3/common/http"
 	"github.com/photon-storage/go-gw3/common/reporting"
+	rcpinner "github.com/photon-storage/go-rc-pinner"
+
+	"github.com/photon-storage/falcon/node/config"
+	"github.com/photon-storage/falcon/node/handlers"
 )
 
 type monitorHandler struct {
@@ -49,11 +51,11 @@ func (m *monitorHandler) wrap(next gohttp.Handler) gohttp.Handler {
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
 
-		ctx = SetNoReportFromCtx(ctx)
+		ctx = WithNoReport(ctx)
 		p2pIngr := atomic.NewUint64(0)
-		ctx = SetFetchSizeFromCtx(ctx, p2pIngr)
+		ctx = rcpinner.WithDagSize(ctx, p2pIngr)
 		dagStats := handlers.NewDagStats()
-		ctx = SetDagStatFromCtx(ctx, dagStats)
+		ctx = handlers.WithDagStat(ctx, dagStats)
 		r = r.WithContext(ctx)
 
 		maxSize, err := extractSizeFromArgs(r)

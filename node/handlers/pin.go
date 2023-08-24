@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	gohttp "net/http"
+	"strconv"
 	"strings"
 
 	coreiface "github.com/ipfs/boxo/coreiface"
@@ -24,10 +25,9 @@ import (
 )
 
 var (
-	ErrInvalidCID           = errors.New("invalid CID")
-	ErrInvalidRecursiveFlag = errors.New("invalid value for recursive flag")
-	ErrCIDNotChild          = errors.New("CID is not a child from root")
-	ErrCIDDuplicated        = errors.New("duplicated CID found")
+	ErrInvalidCID    = errors.New("invalid CID")
+	ErrCIDNotChild   = errors.New("CID is not a child from root")
+	ErrCIDDuplicated = errors.New("duplicated CID found")
 )
 
 type pinAddRespHandler struct {
@@ -118,6 +118,24 @@ func (h *ExtendedHandlers) PinAdd() gohttp.HandlerFunc {
 			)
 			return
 		}
+
+		cc, err := parseConcurrencyParam(r)
+		if err != nil {
+			writeJSON(
+				w,
+				gohttp.StatusBadRequest,
+				&PinAddResult{
+					Success:    false,
+					InProgress: false,
+					Message:    fmt.Sprintf("error parsing params: %v", err),
+				},
+			)
+			return
+		}
+		if cc == 0 {
+			cc = 32
+		}
+		r = r.WithContext(rcpinner.WithConcurrency(r.Context(), cc))
 
 		h.apiHandlers.ServeHTTP(
 			newResponseWriter(
@@ -609,12 +627,20 @@ func parsePinParams(r *gohttp.Request) (cid.Cid, bool, error) {
 
 func parseRecursiveParam(r *gohttp.Request) (bool, error) {
 	query := r.URL.Query()
-	recursiveStr := strings.ToLower(query.Get(http.ParamIPFSRecursive))
-	if recursiveStr == "1" || recursiveStr == "true" {
-		return true, nil
-	} else if recursiveStr == "0" || recursiveStr == "false" {
-		return false, nil
+	return strconv.ParseBool(query.Get(http.ParamIPFSRecursive))
+}
+
+func parseConcurrencyParam(r *gohttp.Request) (int, error) {
+	query := r.URL.Query()
+	ccStr := strings.TrimSpace(query.Get(http.ParamIPFSConcurrency))
+	if ccStr == "" {
+		return 0, nil
 	}
 
-	return false, ErrInvalidRecursiveFlag
+	v, err := strconv.ParseInt(ccStr, 10, 64)
+	if err != nil {
+		return 0, nil
+	}
+
+	return int(v), nil
 }
