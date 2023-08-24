@@ -161,7 +161,7 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 			}
 		}
 
-		r = r.WithContext(SetNoAuthFromCtx(r.Context()))
+		r = r.WithContext(WithNoAuth(r.Context()))
 
 		// Reset query params and headers to trim unexpected params and
 		// headers from requests. This ensures all params and headers
@@ -232,7 +232,7 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 				}
 			}
 
-			r = r.WithContext(SetArgsFromCtx(r.Context(), args))
+			r = r.WithContext(WithArgs(r.Context(), args))
 		}
 		r.URL.RawQuery = query.Encode()
 

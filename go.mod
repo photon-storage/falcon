@@ -24,8 +24,8 @@ require (
 	github.com/multiformats/go-multiaddr-dns v0.3.1
 	github.com/multiformats/go-multibase v0.2.0
 	github.com/photon-storage/go-common v0.0.0-20230504104528-a237492a0c5b
-	github.com/photon-storage/go-gw3 v0.0.0-20230823075004-276f1842850a
-	github.com/photon-storage/go-rc-pinner v0.0.0-20230821033841-854b64ce6c7f
+	github.com/photon-storage/go-gw3 v0.0.0-20230824062428-c323c63ec101
+	github.com/photon-storage/go-rc-pinner v0.0.0-20230824044214-97384a88c814
 	github.com/prometheus/client_golang v1.14.0
 	github.com/stretchr/testify v1.8.4
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.42.0

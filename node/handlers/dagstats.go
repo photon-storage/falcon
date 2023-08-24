@@ -11,15 +11,23 @@ import (
 )
 
 const (
-	DagStatsCtxKey = "ctx_dagstats"
+	dagStatsCtxKey = "ctx_dagstats"
 )
 
 func getDagStatsFromCtx(ctx context.Context) *DagStats {
-	ds, ok := ctx.Value(DagStatsCtxKey).(*DagStats)
+	v := ctx.Value(dagStatsCtxKey)
+	if v == nil {
+		return nil
+	}
+	ds, ok := v.(*DagStats)
 	if !ok {
 		return nil
 	}
 	return ds
+}
+
+func WithDagStat(ctx context.Context, v *DagStats) context.Context {
+	return context.WithValue(ctx, dagStatsCtxKey, v)
 }
 
 type DagStats struct {
