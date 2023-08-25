@@ -18,6 +18,7 @@ func initMetrics(ctx context.Context, port int) {
 	metrics.NewGauge("restart_at_seconds")
 
 	metrics.RegisterDiskMetrics(ctx)
+	metrics.RegisterIfaceMetrics(ctx)
 
 	metrics.NewCounter("ingress_bytes")
 	metrics.NewCounter("egress_bytes")

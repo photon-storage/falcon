@@ -742,6 +742,8 @@ github.com/photon-storage/fastssz v0.0.0-20220401135229-47aa49fe839f h1:9665mStR
 github.com/photon-storage/fastssz v0.0.0-20220401135229-47aa49fe839f/go.mod h1:Hmk4z6NsD9YtCrJE1P1BL6hQ3pWVuCzRE9oL7FMs/C0=
 github.com/photon-storage/go-common v0.0.0-20230504104528-a237492a0c5b h1:B5djWA/CUMq3d0gGvnoQbjyS2evD4GNaIIjP2ljPvn8=
 github.com/photon-storage/go-common v0.0.0-20230504104528-a237492a0c5b/go.mod h1:esL6le/G7T9W1HjHvMZ+N+WciU/J9qKoF+ZS+GqwCDM=
+github.com/photon-storage/go-common v0.0.0-20230825114001-6bc86048b890 h1:0G+ogV0CDNCAHV3FyHYmXoX9KoDiMunRkMZapRPgIQ4=
+github.com/photon-storage/go-common v0.0.0-20230825114001-6bc86048b890/go.mod h1:esL6le/G7T9W1HjHvMZ+N+WciU/J9qKoF+ZS+GqwCDM=
 github.com/photon-storage/go-gw3 v0.0.0-20230712033046-1eab16b214f9 h1:mVkrKsgD0K7fsL+wTLeaWLni+yFJJ52DZXqj0P7kTi0=
 github.com/photon-storage/go-gw3 v0.0.0-20230712033046-1eab16b214f9/go.mod h1:foxw1qeXmqSni8lHQ6FrIrJ0dfsT3PNJN6AisMFEGIo=
 github.com/photon-storage/go-gw3 v0.0.0-20230713054854-2d0d12911627 h1:XFqEYV0MR38GZQA0sa8/J/dI60WBL0+LmB4724mrKIU=
