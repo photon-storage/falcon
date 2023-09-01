@@ -1,15 +1,44 @@
 package node
 
 import (
+	"fmt"
 	gohttp "net/http"
 	"net/http/httptest"
 	"net/url"
 	"testing"
 
 	"github.com/photon-storage/go-common/testing/require"
+	"github.com/photon-storage/go-gw3/common/auth"
+	"github.com/photon-storage/go-gw3/common/http"
 
 	"github.com/photon-storage/falcon/node/config"
 )
+
+func TestExtractAccessCode(t *testing.T) {
+	host := "k2jmtxwtq81s8hq26muw06qpx2b98ljg81uzzqmrzvtqsedthkv1yrnd.gw3.io"
+	r, err := gohttp.NewRequest(
+		gohttp.MethodGet,
+		fmt.Sprintf("https://%v/example.txt", host),
+		nil,
+	)
+	require.NoError(t, err)
+	extractAccessCode(r)
+	require.Equal(t, host, r.Host)
+	require.Equal(t, host, r.URL.Host)
+	require.Equal(t, "", r.URL.Query().Get(http.ParamP3AccessCode))
+
+	ac := auth.GenAccessCode()
+	r, err = gohttp.NewRequest(
+		gohttp.MethodGet,
+		fmt.Sprintf("https://%v/example.txt", ac+host),
+		nil,
+	)
+	require.NoError(t, err)
+	extractAccessCode(r)
+	require.Equal(t, host, r.Host)
+	require.Equal(t, host, r.URL.Host)
+	require.Equal(t, ac, r.URL.Query().Get(http.ParamP3AccessCode))
+}
 
 func TestRedirect(t *testing.T) {
 	hostname := "xxx.gtw3.io"

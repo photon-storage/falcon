@@ -84,7 +84,7 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 
 		uri := auth.CanonicalizeURI(r.URL.Path)
 
-		// Global request timeout: 10 mins
+		// Set global request timeout.
 		ctx, cancel := context.WithTimeout(r.Context(), getUriTimeout(uri))
 		defer cancel()
 		r = r.WithContext(ctx)
@@ -117,6 +117,8 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 			)
 			return
 		}
+
+		extractAccessCode(r)
 
 		if strings.HasPrefix(uri, "/ipfs/") {
 			uri = "/ipfs"
@@ -238,6 +240,19 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 
 		next.ServeHTTP(sw, r)
 	})
+}
+
+func extractAccessCode(r *gohttp.Request) {
+	ac, host, err := auth.ExtractLeadingAccessCode(r.Host)
+	if err == auth.ErrAccessCodeNotFound {
+		return
+	}
+
+	r.Host = host
+	r.URL.Host = host
+	query := r.URL.Query()
+	query.Add(http.ParamP3AccessCode, ac)
+	r.URL.RawQuery = query.Encode()
 }
 
 func redirectToStarbase(w gohttp.ResponseWriter, r *gohttp.Request) {
