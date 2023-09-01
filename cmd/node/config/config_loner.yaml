@@ -59,7 +59,7 @@ listen_addresses:
 secret_key_base64: CAESQOiMDZG28QD6UTZjXsT4sRgWf4iKYIA5y+wNibdp4OQMcKn/prp8dtK+lLd7rgnnjmYHXBSconxM8OuCrBIeapg=
 
 extern_services:
-  starbase: "localhost:16000"
+  starbase: "http://localhost:16000"
   spaceport: ""
 
 discovery:
