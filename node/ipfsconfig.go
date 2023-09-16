@@ -161,7 +161,7 @@ func overrideIPFSConfig(repo repo.Repo) error {
 	// Force IPNS pubsub
 	setFlag(
 		&rcfg.Ipns.UsePubsub,
-		kuboconfig.False,
+		kuboconfig.True,
 		&modified,
 	)
 
