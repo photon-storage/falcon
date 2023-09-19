@@ -37,8 +37,8 @@ auth:
     - /api/v0/name/broadcast
 
 ipfs_config:
-  max_mem_mbytes: 2048
-  max_file_descriptors: 8192
+  max_mem_mbytes: 512
+  max_file_descriptors: 512
   conn_mgr_low_water: 128
   conn_mgr_high_water: 256
   conn_mgr_grace_period: 1m
