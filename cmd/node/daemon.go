@@ -357,6 +357,21 @@ func daemonFunc(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment
 		break
 	}
 
+	//////////////////// Falcon ////////////////////
+	if err := falconnode.InitFalconBeforeNodeConstruction(req, repo); err != nil {
+		fmt.Printf("Error initializing falcon before IPFS node construction: %v", err)
+		return err
+	}
+	// Reopen repo so the modified config takes effect.
+	if err := repo.Close(); err != nil {
+		return err
+	}
+	repo, err = fsrepo.Open(cctx.ConfigRoot)
+	if err != nil {
+		return err
+	}
+	//////////////////// Falcon ////////////////////
+
 	// The node will also close the repo but there are many places we could
 	// fail before we get to that. It can't hurt to close it twice.
 	defer repo.Close()
@@ -446,13 +461,6 @@ func daemonFunc(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment
 	if agentVersionSuffixString != "" {
 		version.SetUserAgentSuffix(agentVersionSuffixString)
 	}
-
-	//////////////////// Falcon ////////////////////
-	if err := falconnode.InitFalconBeforeNodeConstruction(req, repo); err != nil {
-		fmt.Printf("Error initializing falcon before IPFS node construction: %v", err)
-		return err
-	}
-	//////////////////// Falcon ////////////////////
 
 	node, err := core.NewNode(req.Context, ncfg)
 	if err != nil {
