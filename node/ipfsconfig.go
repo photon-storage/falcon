@@ -2,25 +2,56 @@ package node
 
 import (
 	"fmt"
+	"path/filepath"
 	"reflect"
 	"time"
 
 	kuboconfig "github.com/ipfs/kubo/config"
+	serialize "github.com/ipfs/kubo/config/serialize"
 	"github.com/ipfs/kubo/repo"
 	"github.com/libp2p/go-libp2p/core/peer"
+	rcmgr "github.com/libp2p/go-libp2p/p2p/host/resource-manager"
+	"github.com/mitchellh/go-homedir"
 
 	"github.com/photon-storage/go-common/log"
 
 	"github.com/photon-storage/falcon/node/config"
 )
 
-func overrideIPFSConfig(repo repo.Repo) error {
+func overrideIPFSConfig(repoPath string, repo repo.Repo) error {
+	expPath, err := homedir.Expand(filepath.Clean(repoPath))
+	if err != nil {
+		return err
+	}
+	repoPath = expPath
+
 	rcfg, err := repo.Config()
 	if err != nil {
 		return err
 	}
 
 	falconCfg := config.Get()
+
+	// TODO(kmax): experiment with limit user overrides
+	limitCfg, err := repo.UserResourceOverrides()
+	if err != nil {
+		return err
+	}
+	limitCfg.System.Conns = rcmgr.LimitVal(512)
+	limitCfg.System.Streams = rcmgr.DefaultLimit
+	limitCfg.System.FD = rcmgr.LimitVal(512)
+	limitCfg.System.Memory = rcmgr.LimitVal64(512 << 20)
+	limitCfg.Transient.Conns = rcmgr.LimitVal(768)
+	limitCfg.Transient.Streams = rcmgr.DefaultLimit
+	limitCfg.Transient.FD = rcmgr.LimitVal(768)
+	limitCfg.Transient.Memory = rcmgr.LimitVal64(768 << 20)
+	if err := serialize.WriteConfigFile(
+		filepath.Join(repoPath, "libp2p-resource-limit-overrides.json"),
+		limitCfg,
+	); err != nil {
+		return err
+	}
+
 	modified := false
 
 	// Resource Manager
@@ -45,7 +76,7 @@ func overrideIPFSConfig(repo repo.Repo) error {
 		swarmRcMgrChanged = true
 	}
 
-	if swarmRcMgrChanged {
+	if true || swarmRcMgrChanged {
 		setFlag(
 			&rcfg.Swarm.ResourceMgr.Enabled,
 			kuboconfig.True,
