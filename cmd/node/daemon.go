@@ -358,7 +358,7 @@ func daemonFunc(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment
 	}
 
 	//////////////////// Falcon ////////////////////
-	if err := falconnode.InitFalconBeforeNodeConstruction(req, repo); err != nil {
+	if err := falconnode.InitFalconBeforeNodeConstruction(req, cctx.ConfigRoot, repo); err != nil {
 		fmt.Printf("Error initializing falcon before IPFS node construction: %v", err)
 		return err
 	}

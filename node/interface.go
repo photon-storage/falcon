@@ -114,6 +114,7 @@ func ConfigOption() cmds.Option {
 // core.IpfsNode is constructed.
 func InitFalconBeforeNodeConstruction(
 	req *cmds.Request,
+	rpath string,
 	rpo repo.Repo,
 ) error {
 	cfgPath, _ := req.Options[falconConfigFile].(string)
@@ -133,7 +134,7 @@ func InitFalconBeforeNodeConstruction(
 		return err
 	}
 
-	if err := overrideIPFSConfig(rpo); err != nil {
+	if err := overrideIPFSConfig(rpath, rpo); err != nil {
 		return err
 	}
 
