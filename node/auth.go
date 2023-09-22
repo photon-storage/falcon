@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"hash/fnv"
 	gohttp "net/http"
 	"net/textproto"
@@ -90,24 +91,20 @@ func (h *authHandler) wrap(next gohttp.Handler) gohttp.Handler {
 		r = r.WithContext(ctx)
 
 		metrics.CounterInc("request_call_total")
-		// Disable sentry
-		/*
-			sw := newContentSentry(ctx, w)
-			defer func() {
-				sw.flush()
+		sw := newContentSentry(ctx, w)
+		defer func() {
+			sw.flush()
 
-				flagged := sw.getFlaggedRuleName()
-				if flagged != "" {
-					metrics.CounterInc(fmt.Sprintf(
-						"request_blocked_total.rule#%v",
-						flagged,
-					))
-				} else {
-					metrics.CounterInc("request_served_total")
-				}
-			}()
-		*/
-		sw := w
+			flagged := sw.getFlaggedRuleName()
+			if flagged != "" {
+				metrics.CounterInc(fmt.Sprintf(
+					"request_blocked_total.rule#%v",
+					flagged,
+				))
+			} else {
+				metrics.CounterInc("request_served_total")
+			}
+		}()
 
 		if false && r.Method != gohttp.MethodOptions && h.hasRecentSeen(r) {
 			gohttp.Error(
