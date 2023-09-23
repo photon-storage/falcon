@@ -32,19 +32,21 @@ func overrideIPFSConfig(repoPath string, repo repo.Repo) error {
 
 	falconCfg := config.Get()
 
-	// TODO(kmax): experiment with limit user overrides
 	limitCfg, err := repo.UserResourceOverrides()
 	if err != nil {
 		return err
 	}
-	limitCfg.System.Conns = rcmgr.LimitVal(512)
+	maxConns := falconCfg.IPFSConfig.MaxConnections
+	maxMem := int64(falconCfg.IPFSConfig.MaxMemMBytes) << 20
+	maxFd := falconCfg.IPFSConfig.MaxFileDescriptors
+	limitCfg.System.Conns = rcmgr.LimitVal(maxConns)
 	limitCfg.System.Streams = rcmgr.DefaultLimit
-	limitCfg.System.FD = rcmgr.LimitVal(512)
-	limitCfg.System.Memory = rcmgr.LimitVal64(512 << 20)
-	limitCfg.Transient.Conns = rcmgr.LimitVal(768)
+	limitCfg.System.FD = rcmgr.LimitVal(maxFd)
+	limitCfg.System.Memory = rcmgr.LimitVal64(maxMem)
+	limitCfg.Transient.Conns = rcmgr.LimitVal(scale(maxConns, 1.5))
 	limitCfg.Transient.Streams = rcmgr.DefaultLimit
-	limitCfg.Transient.FD = rcmgr.LimitVal(768)
-	limitCfg.Transient.Memory = rcmgr.LimitVal64(768 << 20)
+	limitCfg.Transient.FD = rcmgr.LimitVal(scale(maxFd, 1.5))
+	limitCfg.Transient.Memory = rcmgr.LimitVal64(scale(maxMem, 1.5))
 	if err := serialize.WriteConfigFile(
 		filepath.Join(repoPath, "libp2p-resource-limit-overrides.json"),
 		limitCfg,
@@ -55,34 +57,13 @@ func overrideIPFSConfig(repoPath string, repo repo.Repo) error {
 	modified := false
 
 	// Resource Manager
-	swarmRcMgrChanged := false
-	maxMem := falconCfg.IPFSConfig.MaxMemMBytes
-	if maxMem > 0 {
-		setOptString(
-			&rcfg.Swarm.ResourceMgr.MaxMemory,
-			fmt.Sprintf("%d mib", maxMem),
-			&modified,
-		)
-		swarmRcMgrChanged = true
-	}
-
-	maxFd := falconCfg.IPFSConfig.MaxFileDescriptors
-	if maxFd > 0 {
-		setOptInt(
-			&rcfg.Swarm.ResourceMgr.MaxFileDescriptors,
-			int64(maxFd),
-			&modified,
-		)
-		swarmRcMgrChanged = true
-	}
-
-	if true || swarmRcMgrChanged {
-		setFlag(
-			&rcfg.Swarm.ResourceMgr.Enabled,
-			kuboconfig.True,
-			&modified,
-		)
-	}
+	rcfg.Swarm.ResourceMgr.MaxMemory = nil
+	rcfg.Swarm.ResourceMgr.MaxFileDescriptors = nil
+	setFlag(
+		&rcfg.Swarm.ResourceMgr.Enabled,
+		kuboconfig.True,
+		&modified,
+	)
 
 	// Connection Manager
 	swarmConnMgrChanged := false
@@ -189,12 +170,20 @@ func overrideIPFSConfig(repoPath string, repo repo.Repo) error {
 		&modified,
 	)
 
-	// Force IPNS pubsub
-	setFlag(
-		&rcfg.Ipns.UsePubsub,
-		kuboconfig.True,
-		&modified,
-	)
+	// IPNS pubsub
+	if falconCfg.IPFSConfig.EnablePubSub {
+		setFlag(
+			&rcfg.Ipns.UsePubsub,
+			kuboconfig.True,
+			&modified,
+		)
+	} else {
+		setFlag(
+			&rcfg.Ipns.UsePubsub,
+			kuboconfig.False,
+			&modified,
+		)
+	}
 
 	// No change.
 	if !modified {
@@ -300,4 +289,8 @@ func setHeaders(
 	}
 	m[k] = val
 	*modified = true
+}
+
+func scale[T int | int64](val T, ratio float64) T {
+	return T(float64(val) * ratio)
 }
