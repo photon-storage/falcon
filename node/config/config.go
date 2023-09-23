@@ -56,12 +56,14 @@ type Config struct {
 	// For advanced IPFS config, either use Kubo CLI command or edit
 	// ~/.ipfs/config directly.
 	IPFSConfig struct {
+		MaxConnections     int           `yaml:"max_connections"`
 		MaxMemMBytes       int           `yaml:"max_mem_mbytes"`
 		MaxFileDescriptors int           `yaml:"max_file_descriptors"`
 		ConnMgrLowWater    int           `yaml:"conn_mgr_low_water"`
 		ConnMgrHighWater   int           `yaml:"conn_mgr_high_water"`
 		ConnMgrGracePeriod time.Duration `yaml:"conn_mgr_grace_period"`
 		DisableRelayClient bool          `yaml:"disable_relay_client"`
+		EnablePubSub       bool          `yaml:"enable_pubsub"`
 		Peers              []string      `yaml:"peers"`
 	} `yaml:"ipfs_config"`
 

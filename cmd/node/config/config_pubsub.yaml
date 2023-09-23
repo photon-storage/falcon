@@ -1,0 +1,69 @@
+log:
+  level: debug
+  ipfs_subsystems:
+  file_path: ""
+  color: true
+
+auth:
+  no_auth: false
+  redirect_on_failure: true
+  starbase_public_key_base64: CAESIMkGUKi1SHG55ysx1oO1/SjUyuWQ7s4F1s0R8264dOIk
+  whitelist:
+    #- /ipfs
+    #- /ipns
+    #- /api/v0/block/get
+    #- /api/v0/block/put
+    #- /api/v0/name/publish
+    #- /api/v0/pin/ls
+    #- /api/v0/pin/add
+    # - /api/v0/pin/update
+    #- /api/v0/pin/rm
+    #- /api/v0/pin/children_update
+    #- /api/v0/pin/verify
+    #- /api/v0/pin/count
+    #- /api/v0/dag/get
+    #- /api/v0/dag/put
+    #- /api/v0/dag/export
+    #- /api/v0/dag/import
+    #- /api/v0/dag/stat
+    #- /api/v0/files/ls
+    #- /api/v0/files/mkdir
+    #- /api/v0/files/read
+    #- /api/v0/files/write
+    #- /api/v0/files/rm
+    #- /api/v0/files/mv
+    #- /api/v0/files/cp
+    #- /api/v0/files/flush
+    - /api/v0/name/broadcast
+
+ipfs_config:
+  max_connections: 256
+  max_mem_mbytes: 4096
+  max_file_descriptors: 256
+  conn_mgr_low_water: 128
+  conn_mgr_high_water: 128
+  conn_mgr_grace_period: 1m
+  disable_relay_client: true
+  enable_pubsub: true
+  peers:
+    - 12D3KooWCEhRzyNjsij9UZnu93xKZ2kfCte97dDvKefffmSWndPS # SG0
+    - 12D3KooWDTXS9fyqb4z7ChxkpXEShj2JFUosYGyKSjLMU5TKtmBD # SG1
+    - 12D3KooWCu1aeEZnCMQdvHSoSpP4DGYLAuGrxsXLEELKsaDmGcuA # SG2
+    - 12D3KooWQiBmvTugRnYkNwBT9XPQSu9agrnrwr81Rp1N9fnjQCyH # USW0
+    - 12D3KooWFgWMqxaKnvgahrQeMXsz5PP3NrVPLtBjGDPkAATM47AX # USW1
+    - 12D3KooWEp29YiHxBaC1BgwZQJEiH8vsn1vir4XyzjyyxhA4J2EM # USW2
+
+listen_addresses:
+  - address: ":443"
+    use_tls: true
+  - address: ":80"
+    use_tls: false
+
+# secret_key_base64: Read from env var FALCON_SECRET_KEY
+
+extern_services:
+  starbase: https://gw3.io
+  spaceport: https://spaceport.gw3.io
+
+discovery:
+  public_port: 443
