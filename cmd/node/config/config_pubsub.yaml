@@ -52,6 +52,7 @@ ipfs_config:
     - 12D3KooWQiBmvTugRnYkNwBT9XPQSu9agrnrwr81Rp1N9fnjQCyH # USW0
     - 12D3KooWFgWMqxaKnvgahrQeMXsz5PP3NrVPLtBjGDPkAATM47AX # USW1
     - 12D3KooWEp29YiHxBaC1BgwZQJEiH8vsn1vir4XyzjyyxhA4J2EM # USW2
+    - 12D3KooWCgDHAvPG9E8ie6BiwdZZ9K3A19c6vV4NHi8m6yUWM4UR # PS_USW0
 
 listen_addresses:
   - address: ":443"
