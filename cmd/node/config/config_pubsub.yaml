@@ -37,10 +37,10 @@ auth:
     - /api/v0/name/broadcast
 
 ipfs_config:
-  max_connections: 256
-  max_mem_mbytes: 4096
+  max_connections: 128
+  max_mem_mbytes: 1024
   max_file_descriptors: 256
-  conn_mgr_low_water: 128
+  conn_mgr_low_water: 64
   conn_mgr_high_water: 128
   conn_mgr_grace_period: 1m
   disable_relay_client: true
