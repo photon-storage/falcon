@@ -69,6 +69,10 @@ func overrideIPFSConfig(repoPath string, repo repo.Repo) error {
 	swarmConnMgrChanged := false
 	cmLow := falconCfg.IPFSConfig.ConnMgrLowWater
 	if cmLow > 0 {
+		if cmLow >= maxConns {
+			log.Warn(fmt.Sprintf("System.Conns (%v) must be bigger than ConnMgr.LowWater (%v). Set to %v.", maxConns, cmLow, maxConns-1))
+			cmLow = maxConns - 1
+		}
 		setOptInt(
 			&rcfg.Swarm.ConnMgr.LowWater,
 			int64(cmLow),
@@ -78,6 +82,10 @@ func overrideIPFSConfig(repoPath string, repo repo.Repo) error {
 	}
 	cmHigh := falconCfg.IPFSConfig.ConnMgrHighWater
 	if cmHigh > 0 {
+		if cmHigh >= maxConns {
+			log.Warn(fmt.Sprintf("System.Conns (%v) must be bigger than ConnMgr.HighWater (%v). Set to %v.", maxConns, cmHigh, cmHigh-1))
+			cmHigh = maxConns - 1
+		}
 		setOptInt(
 			&rcfg.Swarm.ConnMgr.HighWater,
 			int64(cmHigh),
