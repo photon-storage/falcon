@@ -62,7 +62,6 @@ func TestNameBroadcast(t *testing.T) {
 		},
 		nil,
 		nil,
-		nil,
 	)
 
 	r, err := gohttp.NewRequest(

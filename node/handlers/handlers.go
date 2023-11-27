@@ -5,26 +5,22 @@ import (
 	gohttp "net/http"
 
 	coreiface "github.com/ipfs/boxo/coreiface"
-	config "github.com/ipfs/kubo/config"
 	"github.com/ipfs/kubo/core"
 )
 
 type ExtendedHandlers struct {
 	nd          *core.IpfsNode
-	rcfg        *config.Config
 	api         coreiface.CoreAPI
 	apiHandlers gohttp.Handler
 }
 
 func New(
 	nd *core.IpfsNode,
-	rcfg *config.Config,
 	api coreiface.CoreAPI,
 	apiHandlers gohttp.Handler,
 ) *ExtendedHandlers {
 	return &ExtendedHandlers{
 		nd:          nd,
-		rcfg:        rcfg,
 		api:         api,
 		apiHandlers: apiHandlers,
 	}
