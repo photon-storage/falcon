@@ -19,7 +19,6 @@ import (
 	"github.com/ipfs/kubo/core/coreapi"
 	"github.com/ipfs/kubo/core/corehttp"
 	manet "github.com/multiformats/go-multiaddr/net"
-	"github.com/rs/cors"
 
 	"github.com/photon-storage/go-common/log"
 	"github.com/photon-storage/go-gw3/common/http"
@@ -105,7 +104,7 @@ func initFalconGateway(
 		// handles /ipfs or subdomain requests. The subdomain requests are
 		// reformated to /ipfs and handled by the next mux registered by
 		// the gatewayOption.
-		apiOption(cctx, coreapi, auth, report),
+		apiOption(cctx, gwCfg, coreapi, auth, report),
 		hostnameOption(cctx, gwCfg, auth, report),
 		gatewayOption(cctx, coreapi, gwCfg, auth, report),
 		corehttp.VersionOption(),
@@ -135,6 +134,7 @@ func initFalconGateway(
 
 func apiOption(
 	cctx *oldcmds.Context,
+	gwCfg gateway.Config,
 	coreapi coreiface.CoreAPI,
 	auth *authHandler,
 	report *monitorHandler,
@@ -153,28 +153,40 @@ func apiOption(
 		mux.Handle(apiPrefix+"/", auth.wrap(
 			report.wrap(apiHandlers),
 		))
+
 		// Custom /api/v0 APIs.
-		ch := cors.AllowAll()
+		ch := func(next gohttp.Handler) gohttp.Handler {
+			return gohttp.HandlerFunc(
+				func(w gohttp.ResponseWriter, r *gohttp.Request) {
+					for k, v := range gwCfg.Headers {
+						w.Header()[gohttp.CanonicalHeaderKey(k)] = v
+					}
+
+					next.ServeHTTP(w, r)
+				},
+			)
+		}
+
 		mux.Handle(apiPrefix+"/pin/add", auth.wrap(
-			report.wrap(ch.Handler(extHandlers.PinAdd())),
+			report.wrap(ch(extHandlers.PinAdd())),
 		))
 		mux.Handle(apiPrefix+"/pin/rm", auth.wrap(
-			report.wrap(ch.Handler(extHandlers.PinRm())),
+			report.wrap(ch(extHandlers.PinRm())),
 		))
 		mux.Handle(apiPrefix+"/pin/children_update", auth.wrap(
-			report.wrap(ch.Handler(extHandlers.PinChildrenUpdate())),
+			report.wrap(ch(extHandlers.PinChildrenUpdate())),
 		))
 		mux.Handle(apiPrefix+"/pin/ls", auth.wrap(
-			report.wrap(ch.Handler(extHandlers.PinList())),
+			report.wrap(ch(extHandlers.PinList())),
 		))
 		mux.Handle(apiPrefix+"/pin/count", auth.wrap(
-			report.wrap(ch.Handler(extHandlers.PinnedCount())),
+			report.wrap(ch(extHandlers.PinnedCount())),
 		))
 		mux.Handle(apiPrefix+"/name/broadcast", auth.wrap(
-			report.wrap(ch.Handler(extHandlers.NameBroadcast())),
+			report.wrap(ch(extHandlers.NameBroadcast())),
 		))
 		mux.Handle(apiPrefix+"/dag/import", auth.wrap(
-			report.wrap(ch.Handler(extHandlers.DagImport())),
+			report.wrap(ch(extHandlers.DagImport())),
 		))
 
 		return mux, nil
@@ -280,41 +292,9 @@ func buildApiHandler(
 ) gohttp.Handler {
 	cfg := cmdshttp.NewServerConfig()
 	cfg.AllowGet = true
-	//cfg.SetAllowedMethods(
-	//	gohttp.MethodGet,
-	//	gohttp.MethodPost,
-	//	gohttp.MethodPut,
-	//)
 	cfg.APIPath = apiPrefix
 
-	// NOTE(kmax): seems not relevant.
-	// addCORSFromEnv(cfg)
-	//addCORSDefaults(cfg)
-	//patchCORSVars(cfg, lis.Addr())
-
 	return cmdshttp.NewHandler(&cctx, corecommands.Root, cfg)
-}
-
-func copyStrings(vals []string) []string {
-	cp := make([]string, len(vals))
-	copy(cp, vals)
-	return cp
-}
-
-func addCORSDefaults(cfg *cmdshttp.ServerConfig) {
-	// always safelist certain origins
-	cfg.AppendAllowedOrigins(
-		"http://127.0.0.1:<port>",
-		"https://127.0.0.1:<port>",
-		"http://[::1]:<port>",
-		"https://[::1]:<port>",
-		"http://localhost:<port>",
-		"https://localhost:<port>",
-	)
-	cfg.AppendAllowedOrigins(
-		"chrome-extension://nibjojkomfdiaoajekhjakgkdhaomnch", // ipfs-companion
-		"chrome-extension://hjoieblefckbooibpepigmacodalfndh", // ipfs-companion-beta
-	)
 }
 
 func patchCORSVars(cfg *cmdshttp.ServerConfig, addr net.Addr) {
