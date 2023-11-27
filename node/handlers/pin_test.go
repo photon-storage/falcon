@@ -58,7 +58,6 @@ func TestPinList(t *testing.T) {
 		},
 		nil,
 		nil,
-		nil,
 	)
 
 	// A{B,C{D,E},F}
@@ -146,7 +145,6 @@ func TestPinListMultiBatches(t *testing.T) {
 		},
 		nil,
 		nil,
-		nil,
 	)
 
 	var nodes []*merkledag.ProtoNode
@@ -212,7 +210,6 @@ func TestPinnedCount(t *testing.T) {
 		&core.IpfsNode{
 			Pinning: pinner,
 		},
-		nil,
 		nil,
 		nil,
 	)
@@ -379,7 +376,6 @@ func TestPinChildrenUpdate(t *testing.T) {
 		&core.IpfsNode{
 			Pinning: pinner,
 		},
-		nil,
 		&mockAPI{
 			dag: &mockAPIDag{
 				DAGService: dserv,
