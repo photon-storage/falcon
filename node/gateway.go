@@ -105,8 +105,8 @@ func initFalconGateway(
 		// handles /ipfs or subdomain requests. The subdomain requests are
 		// reformated to /ipfs and handled by the next mux registered by
 		// the gatewayOption.
-		apiOption(cctx, rcfg, coreapi, auth, report),
-		hostnameOption(cctx, rcfg, gwCfg, auth, report),
+		apiOption(cctx, coreapi, auth, report),
+		hostnameOption(cctx, gwCfg, auth, report),
 		gatewayOption(cctx, coreapi, gwCfg, auth, report),
 		corehttp.VersionOption(),
 	}
@@ -135,7 +135,6 @@ func initFalconGateway(
 
 func apiOption(
 	cctx *oldcmds.Context,
-	rcfg *kuboconfig.Config,
 	coreapi coreiface.CoreAPI,
 	auth *authHandler,
 	report *monitorHandler,
@@ -145,8 +144,8 @@ func apiOption(
 		lis net.Listener,
 		mux *gohttp.ServeMux,
 	) (*gohttp.ServeMux, error) {
-		apiHandlers := buildApiHandler(*cctx, lis, rcfg)
-		extHandlers := handlers.New(nd, rcfg, coreapi, apiHandlers)
+		apiHandlers := buildApiHandler(*cctx, lis)
+		extHandlers := handlers.New(nd, coreapi, apiHandlers)
 
 		mux.Handle("/status", extHandlers.Status())
 		mux.Handle("/status/", extHandlers.Status())
@@ -155,7 +154,7 @@ func apiOption(
 			report.wrap(apiHandlers),
 		))
 		// Custom /api/v0 APIs.
-		ch := cors.New(*getCorsOpts(rcfg))
+		ch := cors.AllowAll()
 		mux.Handle(apiPrefix+"/pin/add", auth.wrap(
 			report.wrap(ch.Handler(extHandlers.PinAdd())),
 		))
@@ -184,7 +183,6 @@ func apiOption(
 
 func hostnameOption(
 	cctx *oldcmds.Context,
-	rcfg *kuboconfig.Config,
 	gwCfg gateway.Config,
 	auth *authHandler,
 	report *monitorHandler,
@@ -279,7 +277,6 @@ func buildIpfsHandler(
 func buildApiHandler(
 	cctx oldcmds.Context,
 	lis net.Listener,
-	rcfg *kuboconfig.Config,
 ) gohttp.Handler {
 	cfg := cmdshttp.NewServerConfig()
 	cfg.AllowGet = true
@@ -291,7 +288,6 @@ func buildApiHandler(
 	cfg.APIPath = apiPrefix
 
 	// NOTE(kmax): seems not relevant.
-	addHeadersFromConfig(cfg, rcfg)
 	// addCORSFromEnv(cfg)
 	//addCORSDefaults(cfg)
 	//patchCORSVars(cfg, lis.Addr())
@@ -303,55 +299,6 @@ func copyStrings(vals []string) []string {
 	cp := make([]string, len(vals))
 	copy(cp, vals)
 	return cp
-}
-
-func getCorsOpts(rcfg *kuboconfig.Config) *cors.Options {
-	opts := new(cors.Options)
-
-	if acao := rcfg.API.HTTPHeaders[cmdshttp.ACAOrigin]; acao != nil {
-		opts.AllowedOrigins = copyStrings(acao)
-	}
-	if acam := rcfg.API.HTTPHeaders[cmdshttp.ACAMethods]; acam != nil {
-		opts.AllowedMethods = copyStrings(acam)
-	}
-	for _, v := range rcfg.API.HTTPHeaders[cmdshttp.ACACredentials] {
-		opts.AllowCredentials = strings.ToLower(v) == "true"
-	}
-	if acah := rcfg.API.HTTPHeaders["Access-Control-Allow-Headers"]; acah != nil {
-		opts.AllowedHeaders = copyStrings(acah)
-	}
-	if aceh := rcfg.API.HTTPHeaders["Access-Control-Expose-Headers"]; aceh != nil {
-		opts.ExposedHeaders = copyStrings(aceh)
-	}
-
-	return opts
-}
-
-func addHeadersFromConfig(c *cmdshttp.ServerConfig, rcfg *kuboconfig.Config) {
-	if acao := rcfg.API.HTTPHeaders[cmdshttp.ACAOrigin]; acao != nil {
-		c.SetAllowedOrigins(acao...)
-	}
-	if acam := rcfg.API.HTTPHeaders[cmdshttp.ACAMethods]; acam != nil {
-		c.SetAllowedMethods(acam...)
-	}
-	for _, v := range rcfg.API.HTTPHeaders[cmdshttp.ACACredentials] {
-		c.SetAllowCredentials(strings.ToLower(v) == "true")
-	}
-
-	c.Headers = make(map[string][]string, len(rcfg.API.HTTPHeaders)+1)
-
-	// Copy these because the config is shared and this function is called
-	// in multiple places concurrently. Updating these in-place *is* racy.
-	for h, v := range rcfg.API.HTTPHeaders {
-		h = gohttp.CanonicalHeaderKey(h)
-		switch h {
-		case cmdshttp.ACAOrigin, cmdshttp.ACAMethods, cmdshttp.ACACredentials:
-			// these are handled by the CORs library.
-		default:
-			c.Headers[h] = v
-		}
-	}
-	c.Headers["Server"] = []string{"gw3/21"}
 }
 
 func addCORSDefaults(cfg *cmdshttp.ServerConfig) {
