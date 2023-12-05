@@ -271,5 +271,13 @@ func redirectToStarbase(w gohttp.ResponseWriter, r *gohttp.Request) {
 		targetHost,
 		1,
 	)
+
+	// Auth is the first process handler. The gateway and node API add the CORS
+	// headers by themselves. This is a quick fix to allow CORS redirects.
+	// However, we need to unify all the CORS settings in one place.
+	w.Header()["Access-Control-Allow-Origin"] = []string{"*"}
+	w.Header()["Access-Control-Allow-Credentials"] = []string{"true"}
+	w.Header()["Access-Control-Allow-Methods"] = []string{gohttp.MethodGet}
+	w.Header()["Access-Control-Expose-Headers"] = []string{"Location"}
 	gohttp.Redirect(w, r, url.String(), gohttp.StatusTemporaryRedirect)
 }
