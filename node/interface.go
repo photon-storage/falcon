@@ -41,8 +41,8 @@ import (
 //
 //     //////////////////// Falcon ////////////////////
 //     if err := falcon.InitFalconBeforeNodeConstruction(req, repo); err != nil {
-//     fmt.Printf("Error initializing falcon before IPFS node construction: %v", err)
-//     return err
+//          fmt.Printf("Error initializing falcon before IPFS node construction: %v", err)
+//          return err
 //     }
 //     //////////////////// Falcon ////////////////////
 //
@@ -52,8 +52,8 @@ import (
 //     //////////////////// Falcon ////////////////////
 //     falconErrc, err := falcon.InitFalconAfterNodeConstruction(req, cctx, node)
 //     if err != nil {
-//     fmt.Printf("Error initializing falcon after IPFS node construction: %v", err)
-//     return err
+//          fmt.Printf("Error initializing falcon after IPFS node construction: %v", err)
+//          return err
 //     }
 //     //////////////////// Falcon ////////////////////
 //
@@ -61,7 +61,7 @@ import (
 //     from cmd/falcon/daemon.go:
 //
 //     for err := range merge(apiErrc, gwErrc, gcErrc, falconErrc) {
-//     ...
+//          ...
 //     }
 //
 //  6. Disable default RPC API initialization in cmd/falcon/daemon.go by adding
@@ -70,7 +70,7 @@ import (
 //
 //     //////////////////// Falcon ////////////////////
 //     if true {
-//     return nil, nil
+//          return nil, nil
 //     }
 //     //////////////////// Falcon ////////////////////
 //
@@ -80,7 +80,7 @@ import (
 //
 //     //////////////////// Falcon ////////////////////
 //     if true {
-//     return nil, nil
+//          return nil, nil
 //     }
 //     //////////////////// Falcon ////////////////////
 //
