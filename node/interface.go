@@ -84,7 +84,7 @@ import (
 //     }
 //     //////////////////// Falcon ////////////////////
 //
-// 8. Disable debug handler in cmd/falcon/debug.go
+//  8. Disable debug handler in cmd/falcon/debug.go
 //
 //  9. Run `go mod tidy` to update go.mod with whats required by the new kubo
 //     version. There might be a conflict with the otel package when building
