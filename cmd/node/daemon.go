@@ -14,7 +14,9 @@ import (
 	"time"
 
 	multierror "github.com/hashicorp/go-multierror"
-
+	options "github.com/ipfs/boxo/coreiface/options"
+	cmds "github.com/ipfs/go-ipfs-cmds"
+	mprome "github.com/ipfs/go-metrics-prometheus"
 	version "github.com/ipfs/kubo"
 	utilmain "github.com/ipfs/kubo/cmd/ipfs/util"
 	oldcmds "github.com/ipfs/kubo/commands"
@@ -30,14 +32,10 @@ import (
 	fsrepo "github.com/ipfs/kubo/repo/fsrepo"
 	"github.com/ipfs/kubo/repo/fsrepo/migrations"
 	"github.com/ipfs/kubo/repo/fsrepo/migrations/ipfsfetcher"
+	goprocess "github.com/jbenet/goprocess"
 	p2pcrypto "github.com/libp2p/go-libp2p/core/crypto"
 	pnet "github.com/libp2p/go-libp2p/core/pnet"
 	sockets "github.com/libp2p/go-socket-activation"
-
-	options "github.com/ipfs/boxo/coreiface/options"
-	cmds "github.com/ipfs/go-ipfs-cmds"
-	mprome "github.com/ipfs/go-metrics-prometheus"
-	goprocess "github.com/jbenet/goprocess"
 	ma "github.com/multiformats/go-multiaddr"
 	manet "github.com/multiformats/go-multiaddr/net"
 	prometheus "github.com/prometheus/client_golang/prometheus"
@@ -397,6 +395,16 @@ func daemonFunc(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment
 		ipnsps = cfg.Ipns.UsePubsub.WithDefault(false)
 	}
 
+	if ipnsps {
+		// Libp2p's PubSub will be initialized if the "pubsub" flag is enabled or
+		// the "ipnsps" flag is enabled. Falcon replaces the IPNS PubsubRouter with
+		// our custom one and always disables the "ipnsps" flag to prevent the Kubo
+		// level from creating the IPNS PubsubRouter. Therefore, we need to enable
+		// the "pubsub" flag to ensure that the PubSub object will be initially
+		// initialized by fx.
+		pubsub = true
+	}
+
 	// Start assembling node config
 	ncfg := &core.BuildCfg{
 		Repo:                        repo,
@@ -405,7 +413,6 @@ func daemonFunc(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment
 		DisableEncryptedConnections: unencrypted,
 		ExtraOpts: map[string]bool{
 			"pubsub": pubsub,
-			"ipnsps": ipnsps,
 		},
 		//TODO(Kubuxu): refactor Online vs Offline by adding Permanent vs Ephemeral
 	}
