@@ -27,7 +27,6 @@ import (
 	"github.com/ipfs/kubo/core/coreapi"
 	corehttp "github.com/ipfs/kubo/core/corehttp"
 	corerepo "github.com/ipfs/kubo/core/corerepo"
-	corenode "github.com/ipfs/kubo/core/node"
 	libp2p "github.com/ipfs/kubo/core/node/libp2p"
 	nodeMount "github.com/ipfs/kubo/fuse/node"
 	fsrepo "github.com/ipfs/kubo/repo/fsrepo"
@@ -41,10 +40,8 @@ import (
 	manet "github.com/multiformats/go-multiaddr/net"
 	prometheus "github.com/prometheus/client_golang/prometheus"
 	promauto "github.com/prometheus/client_golang/prometheus/promauto"
-	"go.uber.org/fx"
 
 	falconnode "github.com/photon-storage/falcon/node"
-	"github.com/photon-storage/falcon/node/com"
 )
 
 const (
@@ -399,12 +396,6 @@ func daemonFunc(req *cmds.Request, re cmds.ResponseEmitter, env cmds.Environment
 	}
 
 	if ipnsps {
-		// enable custom IPNS PubsubRouter
-		corenode.IPNS = fx.Options(
-			fx.Provide(corenode.RecordValidator),
-			fx.Provide(com.PubsubRouter),
-		)
-
 		// Libp2p's PubSub will be initialized if the "pubsub" flag is enabled or
 		// the "ipnsps" flag is enabled. Falcon replaces the IPNS PubsubRouter with
 		// our custom one and always disables the "ipnsps" flag to prevent the Kubo
