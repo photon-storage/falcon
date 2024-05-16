@@ -53,6 +53,9 @@ ipfs_config:
     - 12D3KooWFgWMqxaKnvgahrQeMXsz5PP3NrVPLtBjGDPkAATM47AX # USW1
     - 12D3KooWEp29YiHxBaC1BgwZQJEiH8vsn1vir4XyzjyyxhA4J2EM # USW2
     - 12D3KooWCgDHAvPG9E8ie6BiwdZZ9K3A19c6vV4NHi8m6yUWM4UR # PS_USW0
+    - 12D3KooWLBMmT1dft1zcJvXNYkAfoUqj2RtRm7f9XkF17YmZsu4o # eth.limo01
+    - 12D3KooWMHpq3mdygcbZWbjkuDdCsX5rjZHX31uRbCp9vAZXBxcD # eth.limo02
+    - 12D3KooWQ1b2WBM1NM1a5jWS5Kny3y93zyK6iPBuVAA6uk95zdyJ # eth.limo03
 
 listen_addresses:
   - address: ":443"
